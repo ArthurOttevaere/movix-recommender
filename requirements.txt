@@ -1,6 +1,7 @@
 scikit-surprise==1.1.4
-numpy
+numpy<2.0
 pandas
 scikit-learn
 matplotlib
 jupyter
+spicy
