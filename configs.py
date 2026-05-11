@@ -10,11 +10,15 @@ class EvalConfig:
         ("baseline_3", ModelBaseline3, {}),
         ("baseline_4", ModelBaseline4, {"random_state": 1}),
         ("KNNwithMeans", ModelBaseline5, {"random_state": 1}),
-        ("UserBased", UserBased, {"k": 3, "min_k": 2, "sim_options": {'name': 'msd', 'user_based': True}, "random_state": 1})
+        ("UserBased", UserBased, {"k": 3, "min_k": 2, "sim_options": {'name': 'msd', 'user_based': True}, "random_state": 1}),
+        ("genome_scaled_ridgecv", ContentBased, {"features_method": "genome_scaled", "regressor_method": "ridge_cv"}),
+        ("genome_scaled_tags_ridgecv", ContentBased, {"features_method": "genome_scaled_tags", "regressor_method": "ridge_cv"}),
+        ("genome_scaled_tags_ridgecv_bias", ContentBased, {"features_method": "genome_scaled_tags", "regressor_method": "ridge_cv_bias"}),
+        ("genome_scaled_tags_visuals_ridgecv_bias", ContentBased, {"features_method": "genome_scaled_tags_visuals_scaled", "regressor_method": "ridge_cv_bias"})
     ]
-    split_metrics = ["mae", "rmse"]
-    loo_metrics = ["hit_rate"]
-    full_metrics = ["novelty"]
+    split_metrics = ["rmse"]
+    loo_metrics = []
+    full_metrics = []
 
     # Split parameters
     test_size = 0.25  # -- configure the test_size (from 0 to 1) --

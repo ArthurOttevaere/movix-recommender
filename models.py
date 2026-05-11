@@ -9,7 +9,13 @@ from surprise import AlgoBase
 from surprise import KNNWithMeans
 from surprise import SVD
 from surprise import PredictionImpossible
-
+from constants import Constant as C
+from loaders import load_items
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.decomposition import TruncatedSVD
+import pandas as pd
+from sklearn.linear_model import LinearRegression, Ridge, RidgeCV
 
 def get_top_n(predictions, n):
     """Return the top-N recommendation for each user from a set of predictions.
@@ -200,4 +206,228 @@ class UserBased(AlgoBase):
                     
                     self.sim[i, j] = similarity
                     self.sim[j, i] = similarity
+
+
+# Content-based model with various content features and regression methods
+class ContentBased(AlgoBase):
+    def __init__(self, features_method, regressor_method):
+        AlgoBase.__init__(self)
+        self.regressor_method = regressor_method
+        self.content_features = self.create_content_features(features_method)
+
+    # ── Helpers ───────────────────────────────────────────────────────────
+
+    def _load_genome(self):
+        """Genome : 1128 tags sémantiques, relevance 0-1 pour chaque film."""
+        df_genome = pd.read_csv(C.CONTENT_PATH / 'genome-scores.csv')
+        df_genome = df_genome.pivot(index='movieId', columns='tagId', values='relevance')
+        return df_genome.fillna(0)
+
+    def _load_genome_scaled(self):
+        """Genome normalisé avec StandardScaler."""
+        from sklearn.preprocessing import StandardScaler
+        df_genome = self._load_genome()
+        scaler = StandardScaler()
+        scaled = scaler.fit_transform(df_genome)
+        return pd.DataFrame(scaled, index=df_genome.index, columns=df_genome.columns)
+
+    def _load_visuals_scaled(self):
+        """Visuals normalisés avec StandardScaler."""
+        from sklearn.preprocessing import StandardScaler
+        visual_path = C.CONTENT_PATH / 'visuals' / 'LLVisualFeatures13K_Log.csv'
+        df_visuals = pd.read_csv(visual_path)
+        df_visuals = df_visuals.set_index('ML_Id')
+        df_visuals = df_visuals.fillna(df_visuals.mean())
+        scaler = StandardScaler()
+        scaled = scaler.fit_transform(df_visuals)
+        return pd.DataFrame(scaled, index=df_visuals.index, columns=df_visuals.columns)
+
+    def _load_tags(self):
+        """Tags libres des utilisateurs agrégés par film, vectorisés TF-IDF."""
+        df_tags = pd.read_csv(C.CONTENT_PATH / 'tags.csv')
+        # Aggregate all tags per movie
+        df_tags_grouped = df_tags.groupby('movieId')['tag'].apply(
+            lambda x: ' '.join(x.astype(str))
+        ).reset_index()
+        df_tags_grouped = df_tags_grouped.set_index('movieId')
+
+        tfidf = TfidfVectorizer(max_features=200, min_df=2)
+        tfidf_matrix = tfidf.fit_transform(df_tags_grouped['tag'])
+        df_features = pd.DataFrame(
+            tfidf_matrix.toarray(),
+            index=df_tags_grouped.index,
+            columns=[f'tag_{c}' for c in tfidf.get_feature_names_out()]
+        )
+        return df_features
+
+    def _load_year_genres(self, df_items):
+        """Année normalisée + genres TF-IDF."""
+        df_year = df_items[C.LABEL_COL].str.extract(r'\((\d{4})\)').astype(float)
+        df_year.columns = ['release_year']
+        df_year = df_year.fillna(df_year.mean())
+        df_year = (df_year - df_year.mean()) / df_year.std()
+
+        tfidf = TfidfVectorizer(token_pattern=r'[^|]+')
+        tfidf_matrix = tfidf.fit_transform(df_items[C.GENRES_COL].fillna(''))
+        df_genres = pd.DataFrame(
+            tfidf_matrix.toarray(),
+            index=df_items.index,
+            columns=tfidf.get_feature_names_out()
+        )
+        return df_year, df_genres
+    
+
+    # ── Content Analyzer ──────────────────────────────────────────────────
+
+    def create_content_features(self, features_method):
+        """Content Analyzer"""
+        df_items = load_items()
+
+        if features_method is None:
+            return None
+
+        elif features_method == "genome_scaled":
+            # Best result so far (0.7451)
+            return self._load_genome_scaled()
+
+        elif features_method == "genome_scaled_tags":
+            # Genome normalisé + tags libres TF-IDF — best combination (0.7451)
+            df_genome_scaled = self._load_genome_scaled()
+            df_tags = self._load_tags()
+            return df_genome_scaled.join(df_tags, how='left').fillna(0)
+
+        elif features_method == "genome_scaled_visuals_scaled":
+            # Genome normalisé + visuals normalisés
+            df_genome_scaled = self._load_genome_scaled()
+            df_visuals_scaled = self._load_visuals_scaled()
+            return df_genome_scaled.join(df_visuals_scaled, how='left').fillna(0)
+
+        elif features_method == "genome_scaled_tags_visuals_scaled":
+            # Genome normalisé + tags libres + visuals normalisés
+            df_genome_scaled = self._load_genome_scaled()
+            df_tags = self._load_tags()
+            df_visuals_scaled = self._load_visuals_scaled()
+            df_features = df_genome_scaled.join(df_tags, how='left')
+            df_features = df_features.join(df_visuals_scaled, how='left')
+            return df_features.fillna(0)
+
+        else:
+            raise NotImplementedError(f'Feature method {features_method} not yet implemented')
+
+    # ── Profile Learner ───────────────────────────────────────────────────
+
+    def fit(self, trainset):
+        """Profile Learner"""
+        AlgoBase.fit(self, trainset)
+        self.user_profile = {u: None for u in trainset.all_users()}
+
+        # Store global mean and user means for bias correction
+        self.global_mean = trainset.global_mean
+        self.user_means = {
+            u: np.mean([r for _, r in trainset.ur[u]])
+            for u in trainset.all_users()
+        }
+        self.user_n_ratings = {
+            u: len(trainset.ur[u])
+            for u in trainset.all_users()
+        }
+
+        if self.regressor_method == 'random_score':
+            pass
+
+        elif self.regressor_method == 'random_sample':
+            for u in self.user_profile:
+                self.user_profile[u] = [rating for _, rating in self.trainset.ur[u]]
+
+        elif self.regressor_method in (
+            'linear_regression', 'random_forest', 'ridge', 'ridge_cv', 'ridge_cv_bias'
+        ):
+            feature_names = list(self.content_features.columns)
+            for u in self.user_profile:
+                df_user = pd.DataFrame(self.trainset.ur[u], columns=['item_id', 'user_ratings'])
+                df_user['item_id'] = df_user['item_id'].map(self.trainset.to_raw_iid)
+
+                df_user = df_user.merge(
+                    self.content_features,
+                    how='left',
+                    left_on='item_id',
+                    right_index=True
+                )
+
+                # Remove items without any feature
+                df_user = df_user.dropna(subset=feature_names, how='all')
+                df_user = df_user.fillna(0)
+
+                # Guard : not enough examples to fit
+                if len(df_user) < 2:
+                    self.user_profile[u] = None
+                    continue
+
+                X = df_user[feature_names].values
+                y = df_user['user_ratings'].values
+
+                if self.regressor_method == 'linear_regression':
+                    regressor = LinearRegression(fit_intercept=True)
+                elif self.regressor_method == 'random_forest':
+                    regressor = RandomForestRegressor(n_estimators=10, random_state=0)
+                elif self.regressor_method == 'ridge':
+                    regressor = Ridge(alpha=1.0)
+                elif self.regressor_method in ('ridge_cv', 'ridge_cv_bias'):
+                    # Optimized directly on RMSE with wide alpha grid
+                    regressor = RidgeCV(
+                        alphas=[0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0],
+                        scoring='neg_root_mean_squared_error'
+                    )
+
+                regressor.fit(X, y)
+                self.user_profile[u] = regressor
+
+    # ── Scoring component ─────────────────────────────────────────────────
+
+    def estimate(self, u, i):
+        """Scoring component used for item filtering"""
+        if not (self.trainset.knows_user(u) and self.trainset.knows_item(i)):
+            raise PredictionImpossible('User and/or item is unkown.')
+
+        if self.regressor_method == 'random_score':
+            rd.seed()
+            return rd.uniform(0.5, 5)
+
+        elif self.regressor_method == 'random_sample':
+            rd.seed()
+            return rd.choice(self.user_profile[u])
+
+        elif self.regressor_method in (
+            'linear_regression', 'random_forest', 'ridge', 'ridge_cv', 'ridge_cv_bias'
+        ):
+            raw_item_id = self.trainset.to_raw_iid(i)
+
+            # Fallback for cold-start items
+            if self.content_features is None or raw_item_id not in self.content_features.index:
+                return self.trainset.global_mean
+
+            x = self.content_features.loc[[raw_item_id], :].values
+
+            if self.user_profile[u] is None or x.shape[0] == 0:
+                return self.trainset.global_mean
+
+            # Model prediction
+            score = self.user_profile[u].predict(x)[0]
+
+            if self.regressor_method == 'ridge_cv_bias':
+                # User bias correction : weighted blend based on number of ratings
+                n_ratings = self.user_n_ratings[u]
+                user_mean = self.user_means[u]
+                global_mean = self.global_mean
+
+                # More ratings = more trust in model, less in global mean
+                weight = min(1.0, n_ratings / 50)
+                score = weight * score + (1 - weight) * (global_mean + (user_mean - global_mean))
+
+            # Clamp score within rating scale
+            lo, hi = self.trainset.rating_scale
+            return float(np.clip(score, lo, hi))
+
+        else:
+            return self.trainset.global_mean
         
