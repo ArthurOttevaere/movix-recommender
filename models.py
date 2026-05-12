@@ -495,6 +495,65 @@ class ContentBased(AlgoBase):
                 print("[all_content_tmdb] Warning: TMDB cache missing, falling back to all_content_full")
             return df_features.fillna(0)
 
+        elif features_method == "all_content_tmdb_tags1128":
+            # Pareil que all_content_tmdb mais tags TF-IDF max_features=1128 (= dim genome).
+            df_genome_scaled = self._load_genome_scaled()
+            df_tags = self._load_tags(max_features=1128, ngrams=(1, 2), sublinear=True, min_df=3)
+            df_year, df_genres = self._load_year_genres(df_items, with_decades=True)
+            df_tmdb = self._load_tmdb_features()
+            df_features = df_genome_scaled.join(df_tags, how='outer')
+            df_features = df_features.join(df_year, how='outer')
+            df_features = df_features.join(df_genres, how='outer')
+            if df_tmdb is not None:
+                df_features = df_features.join(df_tmdb, how='outer')
+            return df_features.fillna(0)
+
+        elif features_method == "all_content_tags1128":
+            # genome + tags(1128) + year/decade/genres, SANS TMDB (pour isoler l'effet 1128).
+            df_genome_scaled = self._load_genome_scaled()
+            df_tags = self._load_tags(max_features=1128, ngrams=(1, 2), sublinear=True, min_df=3)
+            df_year, df_genres = self._load_year_genres(df_items, with_decades=True)
+            df_features = df_genome_scaled.join(df_tags, how='outer')
+            df_features = df_features.join(df_year, how='outer')
+            df_features = df_features.join(df_genres, how='outer')
+            return df_features.fillna(0)
+
+        elif features_method == "genome_tags1128_only":
+            # Hypothèse minimale : juste genome (1128) + tags(1128). Match exact de l'indice ami.
+            df_genome_scaled = self._load_genome_scaled()
+            df_tags = self._load_tags(max_features=1128, ngrams=(1, 2), sublinear=True, min_df=3)
+            df_features = df_genome_scaled.join(df_tags, how='outer')
+            return df_features.fillna(0)
+
+        elif features_method == "all_content_tmdb_emb_tags1128":
+            # Combo : tags1128 + TMDB + SBERT embeddings. Stack des 2 gains.
+            df_genome_scaled = self._load_genome_scaled()
+            df_tags = self._load_tags(max_features=1128, ngrams=(1, 2), sublinear=True, min_df=3)
+            df_year, df_genres = self._load_year_genres(df_items, with_decades=True)
+            df_tmdb = self._load_tmdb_features()
+            df_emb = self._load_overview_embeddings()
+            df_features = df_genome_scaled.join(df_tags, how='outer')
+            df_features = df_features.join(df_year, how='outer')
+            df_features = df_features.join(df_genres, how='outer')
+            if df_tmdb is not None:
+                df_features = df_features.join(df_tmdb, how='outer')
+            if df_emb is not None:
+                df_features = df_features.join(df_emb, how='outer')
+            return df_features.fillna(0)
+
+        elif features_method == "all_content_tmdb_tags2000":
+            # Pousse plus loin : tags max=2000 (au-delà de la dim genome).
+            df_genome_scaled = self._load_genome_scaled()
+            df_tags = self._load_tags(max_features=2000, ngrams=(1, 2), sublinear=True, min_df=3)
+            df_year, df_genres = self._load_year_genres(df_items, with_decades=True)
+            df_tmdb = self._load_tmdb_features()
+            df_features = df_genome_scaled.join(df_tags, how='outer')
+            df_features = df_features.join(df_year, how='outer')
+            df_features = df_features.join(df_genres, how='outer')
+            if df_tmdb is not None:
+                df_features = df_features.join(df_tmdb, how='outer')
+            return df_features.fillna(0)
+
         elif features_method == "all_content_tmdb_emb":
             # all_content_tmdb + 384-d Sentence-Transformer embeddings on (title+tagline+overview)
             df_genome_scaled = self._load_genome_scaled()
@@ -663,7 +722,9 @@ class ContentBased(AlgoBase):
 
         elif self.regressor_method in (
             'linear_regression', 'random_forest', 'ridge', 'ridge_cv', 'ridge_cv_bias',
-            'ridge_cv_centered', 'ridge_knn_blend'
+            'ridge_cv_centered', 'ridge_knn_blend',
+            'ridge_a10', 'ridge_a100', 'ridge_a500', 'ridge_a1000', 'ridge_a5000', 'ridge_a10000',
+            'huber', 'bayesian_ridge'
         ):
             for u in self.user_profile:
                 X, y = self._build_user_frame(u)
@@ -680,13 +741,34 @@ class ContentBased(AlgoBase):
                     regressor = RandomForestRegressor(n_estimators=10, random_state=0)
                 elif self.regressor_method == 'ridge':
                     regressor = Ridge(alpha=1.0)
+                elif self.regressor_method == 'ridge_a20':
+                    regressor = Ridge(alpha=20.0)
+                elif self.regressor_method == 'ridge_a100':
+                    regressor = Ridge(alpha=100.0)
+                elif self.regressor_method == 'ridge_a500':
+                    regressor = Ridge(alpha=500.0)
+                elif self.regressor_method == 'ridge_a1000':
+                    regressor = Ridge(alpha=1000.0)
+                elif self.regressor_method == 'ridge_a5000':
+                    regressor = Ridge(alpha=5000.0)
+                elif self.regressor_method == 'ridge_a10000':
+                    regressor = Ridge(alpha=10000.0)
+                elif self.regressor_method == 'huber':
+                    from sklearn.linear_model import HuberRegressor
+                    regressor = HuberRegressor(alpha=0.001, max_iter=200)
+                elif self.regressor_method == 'bayesian_ridge':
+                    from sklearn.linear_model import BayesianRidge
+                    regressor = BayesianRidge()
                 else:
                     regressor = RidgeCV(
                         alphas=[0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0],
                         scoring='neg_root_mean_squared_error'
                     )
-                regressor.fit(X, y)
-                self.user_profile[u] = regressor
+                try:
+                    regressor.fit(X, y)
+                    self.user_profile[u] = regressor
+                except Exception:
+                    self.user_profile[u] = None
 
     # ── Scoring component ─────────────────────────────────────────────────
 
@@ -752,7 +834,9 @@ class ContentBased(AlgoBase):
 
         if self.regressor_method in (
             'linear_regression', 'random_forest', 'ridge', 'ridge_cv', 'ridge_cv_bias',
-            'ridge_cv_centered', 'elastic_cv'
+            'ridge_cv_centered', 'elastic_cv',
+            'ridge_a10', 'ridge_a100', 'ridge_a500', 'ridge_a1000', 'ridge_a5000', 'ridge_a10000',
+            'huber', 'bayesian_ridge'
         ):
             if self.content_features is None or raw_item_id not in self.content_features.index:
                 return float(np.clip(self.user_means.get(u, self.global_mean), lo, hi))
