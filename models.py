@@ -473,7 +473,7 @@ class ContentBased(AlgoBase):
         elif features_method == "all_content_full":
             # Combinaison : rich tags + decade additif
             df_genome_scaled = self._load_genome_scaled()
-            df_tags = self._load_tags(max_features=500, ngrams=(1, 2), sublinear=True, min_df=3)
+            df_tags = self._load_tags(max_features=1128, ngrams=(1, 2), sublinear=True, min_df=3)
             df_year, df_genres = self._load_year_genres(df_items, with_decades=True)
             df_features = df_genome_scaled.join(df_tags, how='outer')
             df_features = df_features.join(df_year, how='outer')
@@ -782,3 +782,307 @@ class ContentBased(AlgoBase):
             return float(np.clip(self._predict_stacking(u, raw_item_id), lo, hi))
 
         return self.global_mean
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ContentBasedV2 : TruncatedSVD + non-linear regressors + per-user stacking
+# ─────────────────────────────────────────────────────────────────────────────
+class ContentBasedV2(AlgoBase):
+    """Content-based extension of ContentBased.
+
+    Adds:
+    - TruncatedSVD dim reduction on the content feature matrix (svd_components)
+    - Non-linear regressors per-user: LightGBM, HistGradientBoosting, RF(n=100)
+    - Per-user stacking of multiple regressors (OOF + RidgeCV meta-learner)
+    - Finer RidgeCV alpha grids ('fine', 'ultra')
+    - Adaptive shrinkage toward user_mean (bias_threshold)
+    - Item-cold-start fallback via content-space KNN
+
+    All purely content-based: no signal from other users' ratings of the target item.
+    """
+
+    _ALPHA_GRIDS = {
+        'default': [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0],
+        'fine':    list(np.logspace(-3, 5, 30)),
+    }
+
+    def __init__(
+        self,
+        features_method='all_content_tmdb_emb',
+        regressor_method='ridge_cv',  # ridge_cv | rf100 | lgbm | hgb | stack
+        svd_components=None,
+        alpha_grid='default',         # 'default' | 'fine' | 'ultra'
+        stack_models=None,            # list[str] when regressor_method='stack'
+        bias_threshold=200,
+        knn_fallback=True,
+        knn_k=30,
+        lgbm_params=None,
+        random_state=0,
+    ):
+        AlgoBase.__init__(self)
+        self.features_method = features_method
+        self.regressor_method = regressor_method
+        self.svd_components = svd_components
+        self.alpha_grid = alpha_grid
+        self.stack_models = stack_models or ['ridge_cv', 'lgbm']
+        self.bias_threshold = bias_threshold
+        self.knn_fallback = knn_fallback
+        self.knn_k = knn_k
+        self.lgbm_params = lgbm_params or {}
+        self.random_state = random_state
+
+        # Reuse all the feature loading machinery from ContentBased
+        self._cb = ContentBased(features_method, regressor_method='ridge_cv')
+
+        # Filled by fit()
+        self.X = None               # post-SVD content DataFrame indexed by raw movieId
+        self.X_norm = None          # L2-normalized rows for KNN fallback
+        self.user_profile = {}      # u -> regressor or dict for stacking
+        self.user_means = {}
+        self.user_n_ratings = {}
+        self.global_mean = None
+        self.user_knn_cache = {}    # u -> (feat_rows, ratings)
+
+    # ── Helpers ───────────────────────────────────────────────────────────
+
+    def _apply_svd(self, X_base):
+        """Optional TruncatedSVD + StandardScaler post-reduction."""
+        if self.svd_components is None:
+            return X_base
+        from sklearn.decomposition import TruncatedSVD
+        from sklearn.preprocessing import StandardScaler
+        n_comp = min(self.svd_components, X_base.shape[1] - 1, X_base.shape[0] - 1)
+        svd = TruncatedSVD(n_components=n_comp, random_state=self.random_state)
+        reduced = svd.fit_transform(X_base.values)
+        scaled = StandardScaler().fit_transform(reduced)
+        return pd.DataFrame(
+            scaled, index=X_base.index,
+            columns=[f'svd_{i}' for i in range(n_comp)]
+        )
+
+    def _build_user_frame(self, u, X):
+        """Per-user (X_train, y_train) from feature matrix X."""
+        feature_names = list(X.columns)
+        df_user = pd.DataFrame(self.trainset.ur[u], columns=['item_id', 'user_ratings'])
+        df_user['item_id'] = df_user['item_id'].map(self.trainset.to_raw_iid)
+        df_user = df_user.merge(X, how='left', left_on='item_id', right_index=True)
+        df_user = df_user.dropna(subset=feature_names, how='all').fillna(0)
+        if len(df_user) < 2:
+            return None, None
+        return df_user[feature_names].values, df_user['user_ratings'].values
+
+    def _make_regressor(self, method):
+        """Build a fresh sklearn regressor for the given method."""
+        from sklearn.ensemble import HistGradientBoostingRegressor
+
+        if method == 'ridge_cv':
+            if self.alpha_grid == 'ultra':
+                # 2-stage : coarse first, then fine around best — handled in _fit_ridge_ultra
+                return None
+            alphas = self._ALPHA_GRIDS.get(self.alpha_grid, self._ALPHA_GRIDS['default'])
+            return RidgeCV(alphas=alphas, scoring='neg_root_mean_squared_error')
+
+        if method == 'rf100':
+            return RandomForestRegressor(
+                n_estimators=100, max_depth=8, min_samples_leaf=3,
+                max_features='sqrt', n_jobs=1, random_state=self.random_state,
+            )
+
+        if method == 'hgb':
+            return HistGradientBoostingRegressor(
+                max_iter=300, learning_rate=0.05, max_leaf_nodes=15,
+                min_samples_leaf=5, l2_regularization=0.5,
+                random_state=self.random_state,
+            )
+
+        if method == 'lgbm':
+            try:
+                from lightgbm import LGBMRegressor
+            except ImportError:
+                # Fallback to HGB if lightgbm missing
+                return self._make_regressor('hgb')
+            params = dict(
+                n_estimators=300, learning_rate=0.05, num_leaves=15,
+                max_depth=4, min_child_samples=5, subsample=0.8,
+                colsample_bytree=0.6, reg_lambda=0.5, n_jobs=1,
+                random_state=self.random_state, verbose=-1,
+            )
+            params.update(self.lgbm_params)
+            return LGBMRegressor(**params)
+
+        raise ValueError(f"Unknown base regressor method: {method}")
+
+    def _fit_ridge_ultra(self, X, y):
+        """Two-stage RidgeCV: coarse log-spaced search, then fine refit around best."""
+        coarse = RidgeCV(
+            alphas=np.logspace(-3, 5, 15),
+            scoring='neg_root_mean_squared_error',
+        )
+        coarse.fit(X, y)
+        center = np.log10(coarse.alpha_)
+        fine_alphas = np.logspace(center - 0.5, center + 0.5, 20)
+        fine = RidgeCV(alphas=fine_alphas, scoring='neg_root_mean_squared_error')
+        fine.fit(X, y)
+        return fine
+
+    def _fit_one_user(self, X_user, y_user, method, min_rows_lgbm=80):
+        """Fit a single sklearn regressor on (X_user, y_user) where y is centered."""
+        if method == 'lgbm' and len(y_user) < min_rows_lgbm:
+            method = 'ridge_cv'
+
+        if method == 'ridge_cv' and self.alpha_grid == 'ultra':
+            return self._fit_ridge_ultra(X_user, y_user)
+
+        reg = self._make_regressor(method)
+        reg.fit(X_user, y_user)
+        return reg
+
+    # ── Stacking per-user (OOF base preds → RidgeCV meta) ─────────────────
+
+    def _fit_user_stack(self, X_user, y_user):
+        """OOF stack of self.stack_models for one user. y_user is centered.
+
+        Returns {'meta': RidgeCV, 'base': dict[name -> fitted regressor], 'order': list}
+        or None if not enough rows.
+        """
+        n = len(y_user)
+        if n < 5:
+            return None
+        kf = KFold(n_splits=3, shuffle=True, random_state=self.random_state)
+        oof = {m: np.zeros(n) for m in self.stack_models}
+        for tr, va in kf.split(X_user):
+            for m in self.stack_models:
+                reg = self._fit_one_user(X_user[tr], y_user[tr], m)
+                oof[m][va] = reg.predict(X_user[va])
+
+        meta_X = np.column_stack([oof[m] for m in self.stack_models])
+        meta = RidgeCV(
+            alphas=[0.01, 0.1, 1.0, 10.0, 100.0],
+            scoring='neg_root_mean_squared_error',
+            fit_intercept=True,
+        )
+        meta.fit(meta_X, y_user)
+
+        full = {m: self._fit_one_user(X_user, y_user, m) for m in self.stack_models}
+        return {'meta': meta, 'base': full, 'order': list(self.stack_models)}
+
+    # ── KNN content-space fallback (cold-item handling) ───────────────────
+
+    def _build_knn_cache(self):
+        feat = self.X.values.astype(np.float32)
+        norms = np.linalg.norm(feat, axis=1, keepdims=True)
+        norms = np.where(norms == 0, 1.0, norms)
+        feat_norm = feat / norms
+        self.X_norm = pd.DataFrame(feat_norm, index=self.X.index, columns=self.X.columns)
+
+        for u in self.trainset.all_users():
+            raw_items = [self.trainset.to_raw_iid(iid) for iid, _ in self.trainset.ur[u]]
+            ratings = np.array([r for _, r in self.trainset.ur[u]], dtype=np.float32)
+            feat_rows = self.X_norm.reindex(raw_items)
+            mask = feat_rows.notna().any(axis=1).values & (
+                np.linalg.norm(feat_rows.fillna(0).values, axis=1) > 0
+            )
+            if mask.sum() < 2:
+                self.user_knn_cache[u] = None
+                continue
+            self.user_knn_cache[u] = (
+                feat_rows.fillna(0).values[mask].astype(np.float32),
+                ratings[mask],
+            )
+
+    def _predict_knn(self, u, raw_item_id):
+        cache = self.user_knn_cache.get(u)
+        if cache is None or raw_item_id not in self.X_norm.index:
+            return self.user_means.get(u, self.global_mean)
+        x_i = self.X_norm.loc[raw_item_id].values.astype(np.float32)
+        if np.linalg.norm(x_i) == 0:
+            return self.user_means.get(u, self.global_mean)
+        feat, ratings = cache
+        sim = np.clip(feat @ x_i, 0.0, None)
+        if sim.sum() <= 1e-9:
+            return self.user_means.get(u, self.global_mean)
+        k = min(self.knn_k, len(sim))
+        if k < len(sim):
+            top_idx = np.argpartition(-sim, k - 1)[:k]
+            sim = sim[top_idx]
+            ratings_used = ratings[top_idx]
+        else:
+            ratings_used = ratings
+        if sim.sum() <= 1e-9:
+            return self.user_means.get(u, self.global_mean)
+        user_mean = self.user_means[u]
+        return float(user_mean + (sim * (ratings_used - user_mean)).sum() / sim.sum())
+
+    # ── Fit / Estimate ────────────────────────────────────────────────────
+
+    def fit(self, trainset):
+        AlgoBase.fit(self, trainset)
+        self.global_mean = trainset.global_mean
+        self.user_means = {u: np.mean([r for _, r in trainset.ur[u]]) for u in trainset.all_users()}
+        self.user_n_ratings = {u: len(trainset.ur[u]) for u in trainset.all_users()}
+
+        # 1. Get base content features and (optional) reduce via TruncatedSVD
+        X_base = self._cb.content_features
+        self.X = self._apply_svd(X_base)
+
+        # 2. Build KNN cache for cold-item fallback
+        if self.knn_fallback:
+            self._build_knn_cache()
+
+        # 3. Per-user training (y centered by user_mean)
+        n_users = len(list(trainset.all_users()))
+        progress_every = max(1, n_users // 10)
+        for k, u in enumerate(trainset.all_users()):
+            res = self._build_user_frame(u, self.X)
+            if res[0] is None:
+                self.user_profile[u] = None
+                continue
+            X_user, y_user = res
+            y_centered = y_user - self.user_means[u]
+
+            try:
+                if self.regressor_method == 'stack':
+                    self.user_profile[u] = self._fit_user_stack(X_user, y_centered)
+                else:
+                    self.user_profile[u] = self._fit_one_user(X_user, y_centered, self.regressor_method)
+            except Exception as e:
+                self.user_profile[u] = None
+
+            if (k + 1) % progress_every == 0:
+                print(f'  [V2 fit] {k + 1}/{n_users} users', flush=True)
+
+        return self
+
+    def _predict_one(self, u, raw_item_id):
+        profile = self.user_profile.get(u)
+        if profile is None:
+            if self.knn_fallback:
+                return self._predict_knn(u, raw_item_id)
+            return self.user_means.get(u, self.global_mean)
+        if raw_item_id not in self.X.index:
+            if self.knn_fallback:
+                return self._predict_knn(u, raw_item_id)
+            return self.user_means.get(u, self.global_mean)
+
+        x = self.X.loc[[raw_item_id], :].values
+        if isinstance(profile, dict) and 'meta' in profile:
+            # Stacking
+            base_preds = np.array([profile['base'][m].predict(x)[0] for m in profile['order']])
+            pred_centered = float(profile['meta'].predict(base_preds.reshape(1, -1))[0])
+        else:
+            pred_centered = float(profile.predict(x)[0])
+
+        # De-center + adaptive shrinkage toward user_mean
+        user_mean = self.user_means[u]
+        raw_pred = pred_centered + user_mean
+        w = min(1.0, self.user_n_ratings[u] / self.bias_threshold)
+        return w * raw_pred + (1 - w) * user_mean
+
+    def estimate(self, u, i):
+        if not (self.trainset.knows_user(u) and self.trainset.knows_item(i)):
+            raise PredictionImpossible('User and/or item is unknown.')
+
+        raw_item_id = self.trainset.to_raw_iid(i)
+        lo, hi = self.trainset.rating_scale
+        score = self._predict_one(u, raw_item_id)
+        return float(np.clip(score, lo, hi))

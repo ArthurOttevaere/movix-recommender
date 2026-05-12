@@ -1,16 +1,2 @@
 ,rmse
-baseline_1,1.7751811608853871
-baseline_2,1.7980714807786902
-baseline_3,1.0289604626991233
-baseline_4,0.8174334162798147
-genome_scaled_ridgecv,0.7449568720274248
-genome_scaled_tags_ridgecv,0.7449320496840306
-genome_scaled_tags_ridgecv_bias,0.7449320496840306
-genome_scaled_tags_visuals_ridgecv_bias,0.7449924187795022
-genome_scaled_tags_ridgecv_centered,0.7449320496840306
-all_content_ridgecv,0.7448089268423046
-all_content_rich_tags,0.7448051830290788
-all_content_decade,0.7446629372910599
-all_content_full,0.7446592355516093
-all_content_tmdb,0.7442584782755408
-all_content_tmdb_emb,0.7442398899856811
+all_content_tmdb,0.7442579604909341
