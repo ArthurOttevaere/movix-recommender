@@ -5,10 +5,16 @@ import heapq
 # third parties imports
 import numpy as np
 import random as rd
+import pandas as pd
 from surprise import AlgoBase
 from surprise import KNNWithMeans
 from surprise import SVD
 from surprise import PredictionImpossible
+
+from loaders import load_items
+from constants import Constant as C
+from sklearn.linear_model import LinearRegression
+
 
 
 def get_top_n(predictions, n):
@@ -89,6 +95,7 @@ class ModelBaseline5(KNNWithMeans):
     def __init__(self, random_state=1):
         KNNWithMeans.__init__(self, k=3, min_k = 2, sim_options={'name': 'msd', 'user_based': True}, random_state=random_state)
 
+# User-based model
 class UserBased(AlgoBase):
     def __init__(self, k=3, min_k=1, sim_options={}, **kwargs):
         AlgoBase.__init__(self, sim_options=sim_options, **kwargs)
@@ -201,3 +208,111 @@ class UserBased(AlgoBase):
                     self.sim[i, j] = similarity
                     self.sim[j, i] = similarity
         
+# Content-based model        
+class ContentBased(AlgoBase):
+    def __init__(self, features_method, regressor_method):
+        AlgoBase.__init__(self)
+        self.regressor_method = regressor_method
+        self.content_features = self.create_content_features(features_method)
+
+    def create_content_features(self, features_method):
+        """Content Analyzer"""
+        df_items = load_items()
+        if features_method is None:
+            df_features = None
+        elif features_method == "title_length": # a naive method that creates only 1 feature based on title length
+            df_features = df_items[C.LABEL_COL].apply(lambda x: len(x)).to_frame('n_character_title')
+        else: # (implement other feature creations here)
+            raise NotImplementedError(f'Feature method {features_method} not yet implemented')
+        return df_features
+    
+
+    def fit(self, trainset):
+        """Profile Learner"""
+        AlgoBase.fit(self, trainset)
+        
+        # Preallocate user profiles
+        self.user_profile = {u: None for u in trainset.all_users()}
+
+        if self.regressor_method == 'random_score':
+            pass
+        
+        elif self.regressor_method == 'random_sample':
+            for u in self.user_profile:
+                self.user_profile[u] = [rating for _, rating in self.trainset.ur[u]]
+        # Linear regression 
+        elif self.regressor_method in (
+            'linear_regression', 'random_forest', 'ridge', 'ridge_cv', 'ridge_cv_bias'
+        ):
+            feature_names = list(self.content_features.columns)
+            for u in self.user_profile:
+                df_user = pd.DataFrame(self.trainset.ur[u], columns=['item_id', 'user_ratings'])
+                df_user['item_id'] = df_user['item_id'].map(self.trainset.to_raw_iid)
+
+                df_user = df_user.merge(
+                    self.content_features,
+                    how='left',
+                    left_on='item_id',
+                    right_index=True
+                )
+
+                # Remove items without any feature
+                df_user = df_user.dropna(subset=feature_names, how='all')
+                df_user = df_user.fillna(0)
+
+                # Guard : not enough examples to fit
+                if len(df_user) < 2:
+                    self.user_profile[u] = None
+                    continue
+
+                X = df_user[feature_names].values
+                y = df_user['user_ratings'].values
+
+                if self.regressor_method == 'linear_regression':
+                    regressor = LinearRegression(fit_intercept=True)
+            
+                regressor.fit(X, y)
+                self.user_profile[u] = regressor 
+        
+    def estimate(self, u, i):
+        """Scoring component used for item filtering"""
+        # First, handle cases for unknown users and items
+        if not (self.trainset.knows_user(u) and self.trainset.knows_item(i)):
+            raise PredictionImpossible('User and/or item is unkown.')
+
+
+        if self.regressor_method == 'random_score':
+            rd.seed()
+            score = rd.uniform(0.5,5)
+
+        elif self.regressor_method == 'random_sample':
+            rd.seed()
+            score = rd.choice(self.user_profile[u])
+        
+        # (implement here the regressor prediction)
+        elif self.regressor_method in (
+            'linear_regression', 'random_forest', 'ridge', 'ridge_cv', 'ridge_cv_bias'
+        ):
+            raw_item_id = self.trainset.to_raw_iid(i)
+
+            # Fallback for cold-start items
+            if self.content_features is None or raw_item_id not in self.content_features.index:
+                return self.trainset.global_mean
+
+            x = self.content_features.loc[[raw_item_id], :].values
+
+            if self.user_profile[u] is None or x.shape[0] == 0:
+                return self.trainset.global_mean
+
+            # Model prediction
+            score = self.user_profile[u].predict(x)[0]
+
+            # Clamp score within rating scale
+            lo, hi = self.trainset.rating_scale
+            return float(np.clip(score, lo, hi))
+
+        else:
+            return self.trainset.global_mean
+
+
+        #return score
