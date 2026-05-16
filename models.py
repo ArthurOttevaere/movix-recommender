@@ -394,7 +394,6 @@ class ContentBased(AlgoBase):
         return result
 
     def _load_tags(self, max_features=200, ngrams=(1, 1), sublinear=False, min_df=2):
-        from sklearn.feature_extraction.text import TfidfVectorizer
         df_tags = pd.read_csv(C.CONTENT_PATH / 'tags.csv')
         df_tags = df_tags.dropna(subset=['tag'])
         df_tags['tag'] = df_tags.tag.astype(str).str.lower()
@@ -415,7 +414,6 @@ class ContentBased(AlgoBase):
         )
 
     def _load_year_genres(self, df_items, with_decades=False):
-        from sklearn.feature_extraction.text import TfidfVectorizer
         years = df_items[C.LABEL_COL].str.extract(r'\((\d{4})\)').astype(float)
         years.columns = ['release_year']
         years = years.fillna(years.mean())
@@ -463,6 +461,9 @@ class ContentBased(AlgoBase):
 
         if features_method is None:
             return None
+        
+        elif features_method == "title_length":
+            return df_items[C.LABEL_COL].apply(lambda x: len(x)).to_frame('n_character_title')
 
         elif features_method == "genome_scaled":
             return self._load_genome_scaled()
@@ -765,7 +766,7 @@ class ContentBased(AlgoBase):
                     self.user_profile[u] = None
 
         elif self.regressor_method in (
-            'linear_regression', 'random_forest', 'ridge', 'ridge_cv', 'ridge_cv_bias',
+            'linear_regression_false', 'linear_regression_true', 'random_forest', 'ridge', 'ridge_cv', 'ridge_cv_bias',
             'ridge_cv_centered', 'ridge_knn_blend',
             'ridge_a10', 'ridge_a100', 'ridge_a500', 'ridge_a1000', 'ridge_a5000', 'ridge_a10000',
             'huber', 'bayesian_ridge'
@@ -779,7 +780,9 @@ class ContentBased(AlgoBase):
                 if self.regressor_method == 'ridge_cv_centered':
                     y = y - self.user_means[u]
 
-                if self.regressor_method == 'linear_regression':
+                if self.regressor_method == 'linear_regression_false':
+                    regressor = LinearRegression(fit_intercept=False)
+                elif self.regressor_method == 'linear_regression_true':
                     regressor = LinearRegression(fit_intercept=True)
                 elif self.regressor_method == 'random_forest':
                     regressor = RandomForestRegressor(n_estimators=10, random_state=0)
@@ -877,7 +880,7 @@ class ContentBased(AlgoBase):
         lo, hi = self.trainset.rating_scale
 
         if self.regressor_method in (
-            'linear_regression', 'random_forest', 'ridge', 'ridge_cv', 'ridge_cv_bias',
+            'linear_regression_false', 'linear_regression_true', 'random_forest', 'ridge', 'ridge_cv', 'ridge_cv_bias',
             'ridge_cv_centered', 'elastic_cv',
             'ridge_a10', 'ridge_a100', 'ridge_a500', 'ridge_a1000', 'ridge_a5000', 'ridge_a10000',
             'huber', 'bayesian_ridge'
