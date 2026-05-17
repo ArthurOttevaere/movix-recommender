@@ -298,6 +298,7 @@ Its purpose is to extract item features (from MovieLens and TMDB) and train a pe
 #### 1. Feature Extraction and Preprocessing
 
 The notebook investigates several approaches to build item representations:
+
 - **MovieLens features**: `genome-scores`, TF-IDF on user `tags`, one-hot/TF-IDF on `genres`, and normalised release year.
 - **TMDB metadata**: Additional features extracted via TMDB API (budget, runtime, cast, crew, etc.).
 - **Visuals and Embeddings**: Precomputed visual features and text embeddings from `Sentence-Transformer`.
@@ -319,6 +320,7 @@ The class also supports user-level explainability via `self.user_profile_explain
 #### 3. Regression Strategies
 
 The algorithm supports different regression methods to model user profiles (`regressor_method`):
+
 - Simple baselines (`linear_regression`, `ridge`, `random_forest`)
 - Cross-validated linear models (`ridge_cv`, `elastic_cv`)
 - Advanced approaches (`stacking_groups`, `ridge_knn_blend`)
