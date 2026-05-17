@@ -660,6 +660,29 @@ class ContentBased(AlgoBase):
     def fit(self, trainset):
         AlgoBase.fit(self, trainset)
         self.user_profile = {u: None for u in trainset.all_users()}
+        # Prepare a per-user explain vector (feature importance percentages)
+        self.user_profile_explain = {u: None for u in trainset.all_users()}
+        if self.content_features is not None:
+            feature_names = list(self.content_features.columns)
+            for u in trainset.all_users():
+                X, y = self._build_user_frame(u)
+                if X is None:
+                    self.user_profile_explain[u] = None
+                    continue
+                weights = np.array(y, dtype=np.float64)
+                if weights.sum() <= 1e-9:
+                    self.user_profile_explain[u] = None
+                    continue
+                # weighted average of feature values across items the user rated
+                v = weights @ X / weights.sum()
+                # keep only non-negative contributions (interpretation: positive importance)
+                v_pos = np.maximum(v, 0.0)
+                s = v_pos.sum()
+                if s <= 1e-9:
+                    self.user_profile_explain[u] = None
+                    continue
+                imp = v_pos / s  # percentages summing to 1
+                self.user_profile_explain[u] = pd.Series(imp, index=feature_names)
 
         self.global_mean = trainset.global_mean
         self.user_means = {
@@ -913,3 +936,21 @@ class ContentBased(AlgoBase):
             return float(np.clip(self._predict_stacking(u, raw_item_id), lo, hi))
 
         return self.global_mean
+
+    def explain(self, u):
+        """Return a dict {feature_name: importance} for user `u`.
+        Accepts either an inner user id (int) or a raw user id (string/int).
+        Importance values are percentages summing to 1 (or empty dict if unavailable).
+        """
+        if not hasattr(self, 'user_profile_explain') or self.user_profile_explain is None:
+            return {}
+        inner = u
+        if u not in self.user_profile_explain:
+            try:
+                inner = self.trainset.to_inner_uid(u)
+            except Exception:
+                return {}
+        series = self.user_profile_explain.get(inner)
+        if series is None:
+            return {}
+        return series.to_dict()

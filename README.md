@@ -314,6 +314,8 @@ Extends `AlgoBase` from Surprise. Key components include:
 | `fit()` | Iterates over all users and trains a personalised regression model (e.g. `RidgeCV`, `RandomForestRegressor`) using their individual `user_frame` |
 | `estimate(u, i)` | Predicts a rating by passing the features of item `i` to the pre-trained regressor of user `u` |
 
+The class also supports user-level explainability via `self.user_profile_explain` and the `explain(u)` method. This computes a weighted average of the features a user has rated and returns normalized importance scores for each feature, making the content-based predictions interpretable.
+
 #### 3. Regression Strategies
 
 The algorithm supports different regression methods to model user profiles (`regressor_method`):
@@ -333,3 +335,33 @@ The notebook explores the impact of different combinations of `features_method` 
 - `scikit-learn` — regression models (`RidgeCV`, `RandomForestRegressor`, etc.), TF-IDF, preprocessing, and K-Fold cross-validation
 - `surprise` — algorithm base classes (`AlgoBase`)
 - `constants`, `loaders` — local project modules
+
+---
+
+## Hackathon Submission Module (`hackathon_make_predictions.ipynb`)
+
+This notebook is built around the hackathon workflow for the course dataset in `data/hackathon`.
+It provides a reproducible submission pipeline using `ContentBased` models and a helper to send predictions to the hackathon API.
+
+### Hackathon workflow
+
+- Configure the repository root `.env` file with `HACKATHON_URL` and `HACKATHON_TOKEN`.
+- Use `load_ratings(surprise_format=True)` after setting `C.DATA_PATH = Path('data/hackathon')` to load the hackathon training data.
+- Train a `ContentBased(feature_method, regressor_method)` model on the full hackathon train set.
+- Produce the submission file with `make_hackathon_prediction(...)`, which returns a DataFrame ordered as required by the hidden test set.
+- Submit with `submit_predictions(df_predictions)` and optionally query remaining quota with `check_quota()`.
+
+### Hackathon helper
+
+- `python_helper/hackathon_submit.py` provides `submit_predictions(df)` and `check_quota()`.
+- It auto-loads environment variables from `.env` when available, so you can keep credentials out of version control.
+- The helper validates that the submission DataFrame has exactly the columns `['userId', 'movieId', 'rating']` in that order.
+
+### Best current hackathon configuration
+
+The notebook records a top current submission strategy based on content-rich features and cross-validated Ridge regression:
+
+- `feature_method='all_content_tmdb_tags2000'`
+- `regressor_method='ridge_cv'`
+
+This combination is the current recommended starting point for hackathon predictions.
