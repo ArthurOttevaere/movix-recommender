@@ -140,6 +140,9 @@ Metrics are registered in the `AVAILABLE_METRICS` dictionary as
 | `baseline_2` | `ModelBaseline2` | Predicts a random rating uniformly drawn from the rating scale |
 | `baseline_3` | `ModelBaseline3` | Predicts the global mean rating of the training set |
 | `baseline_4` | `ModelBaseline4` | SVD with 100 latent factors (`random_state=1` for reproducibility) |
+| `baseline_5` | `ModelBaseline5` | KNNWithMeans using MSD baseline similarity and user-based CF |
+| `user_based` | `UserBased` | Custom User-Based CF algorithm with custom similarity metrics |
+| `content_based`| `ContentBased` | Learns a specific regression model per user based on item features |
 
 `get_top_n(predictions, n)` converts a list of `Prediction` objects into a per-user
 top-N dictionary, using random tie-breaking.
@@ -271,3 +274,96 @@ Running `UserBased` with each metric shows that Jaccard can produce different es
 - `numpy`, `heapq` — matrix operations and efficient top-k selection
 - `surprise` (`AlgoBase`, `KNNWithMeans`, `PredictionImpossible`, `Dataset`, `Reader`) — algorithm base classes and data loading
 - `constants`, `loaders` — local project modules
+
+---
+
+## Content-Based Module (`content_based.ipynb`)
+
+This notebook is the **fourth module** of the recommender system project.
+Its purpose is to extract item features (from MovieLens and TMDB) and train a personalised regression model (e.g. Ridge Regression, Random Forest) per user to predict ratings based on item features.
+
+---
+
+### Content-Based Goals
+
+- Extract and pre-process content features (genome scores, tags, genres, release year, TMDB metadata, embeddings)
+- Build a unified feature matrix representing items dynamically using different strategies
+- Implement a `ContentBased` algorithm that learns a specific regressor per user based on their historical ratings and the features of the items they rated
+- Compare the performance of various feature sets and regression strategies (e.g., Ridge CV, Stacked Models, ElasticNet)
+
+---
+
+### Content-Based Notebook structure
+
+#### 1. Feature Extraction and Preprocessing
+
+The notebook investigates several approaches to build item representations:
+
+- **MovieLens features**: `genome-scores`, TF-IDF on user `tags`, one-hot/TF-IDF on `genres`, and normalised release year.
+- **TMDB metadata**: Additional features extracted via TMDB API (budget, runtime, cast, crew, etc.).
+- **Visuals and Embeddings**: Precomputed visual features and text embeddings from `Sentence-Transformer`.
+Various `features_method` parameters (e.g., `all_content`, `all_content_tmdb`, `all_content_v2`) combine these blocks into a unified item-feature matrix. 
+
+#### 2. Custom `ContentBased` class
+
+Extends `AlgoBase` from Surprise. Key components include:
+
+| Component | Description |
+| --- | --- |
+| `create_content_features()` | Assembles the global item-feature matrix based on the selected `features_method` |
+| `_build_user_frame(u)` | Extracts the specific training data (X, y) for a given user `u` based on the items they have rated |
+| `fit()` | Iterates over all users and trains a personalised regression model (e.g. `RidgeCV`, `RandomForestRegressor`) using their individual `user_frame` |
+| `estimate(u, i)` | Predicts a rating by passing the features of item `i` to the pre-trained regressor of user `u` |
+
+The class also supports user-level explainability via `self.user_profile_explain` and the `explain(u)` method. This computes a weighted average of the features a user has rated and returns normalized importance scores for each feature, making the content-based predictions interpretable.
+
+#### 3. Regression Strategies
+
+The algorithm supports different regression methods to model user profiles (`regressor_method`):
+
+- Simple baselines (`linear_regression`, `ridge`, `random_forest`)
+- Cross-validated linear models (`ridge_cv`, `elastic_cv`)
+- Advanced approaches (`stacking_groups`, `ridge_knn_blend`)
+
+#### 4. Model Evaluation
+
+The notebook explores the impact of different combinations of `features_method` and `regressor_method` on rating prediction accuracy using evaluation strategies previously defined in the `evaluator.ipynb` module.
+
+---
+
+### Content-Based dependencies
+
+- `numpy`, `pandas` — data manipulation
+- `scikit-learn` — regression models (`RidgeCV`, `RandomForestRegressor`, etc.), TF-IDF, preprocessing, and K-Fold cross-validation
+- `surprise` — algorithm base classes (`AlgoBase`)
+- `constants`, `loaders` — local project modules
+
+---
+
+## Hackathon Submission Module (`hackathon_make_predictions.ipynb`)
+
+This notebook is built around the hackathon workflow for the course dataset in `data/hackathon`.
+It provides a reproducible submission pipeline using `ContentBased` models and a helper to send predictions to the hackathon API.
+
+### Hackathon workflow
+
+- Configure the repository root `.env` file with `HACKATHON_URL` and `HACKATHON_TOKEN`.
+- Use `load_ratings(surprise_format=True)` after setting `C.DATA_PATH = Path('data/hackathon')` to load the hackathon training data.
+- Train a `ContentBased(feature_method, regressor_method)` model on the full hackathon train set.
+- Produce the submission file with `make_hackathon_prediction(...)`, which returns a DataFrame ordered as required by the hidden test set.
+- Submit with `submit_predictions(df_predictions)` and optionally query remaining quota with `check_quota()`.
+
+### Hackathon helper
+
+- `python_helper/hackathon_submit.py` provides `submit_predictions(df)` and `check_quota()`.
+- It auto-loads environment variables from `.env` when available, so you can keep credentials out of version control.
+- The helper validates that the submission DataFrame has exactly the columns `['userId', 'movieId', 'rating']` in that order.
+
+### Best current hackathon configuration
+
+The notebook records a top current submission strategy based on content-rich features and cross-validated Ridge regression:
+
+- `feature_method='all_content_tmdb_tags2000'`
+- `regressor_method='ridge_cv'`
+
+This combination is the current recommended starting point for hackathon predictions.
