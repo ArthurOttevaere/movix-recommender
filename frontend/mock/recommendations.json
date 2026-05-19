@@ -1,0 +1,182 @@
+{
+  "hero": {
+    "movie_id": 550,
+    "tmdb_id": 550,
+    "title": "Fight Club",
+    "backdrop_url": null,
+    "tagline": "Mischief. Mayhem. Soap.",
+    "score": 0.94
+  },
+  "carousels": [
+    {
+      "id": "content_based",
+      "label": "Because You Watched Inception",
+      "model": "content_based",
+      "explanation": "Based on genres and themes you've highly rated",
+      "movies": [
+        { "movie_id": 603,    "tmdb_id": 603,    "title": "The Matrix",             "year": 1999, "genres": ["Sci-Fi", "Action"],              "poster_url": null, "score": 0.87, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 27205,  "tmdb_id": 27205,  "title": "Inception",              "year": 2010, "genres": ["Action", "Sci-Fi", "Thriller"],  "poster_url": null, "score": 0.85, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 157336, "tmdb_id": 157336, "title": "Interstellar",           "year": 2014, "genres": ["Adventure", "Drama", "Sci-Fi"],  "poster_url": null, "score": 0.82, "in_watchlist": true,  "user_rating": 4.5  },
+        { "movie_id": 680,    "tmdb_id": 680,    "title": "Pulp Fiction",           "year": 1994, "genres": ["Thriller", "Crime"],             "poster_url": null, "score": 0.80, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 13,     "tmdb_id": 13,     "title": "Forrest Gump",           "year": 1994, "genres": ["Comedy", "Drama", "Romance"],   "poster_url": null, "score": 0.78, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 238,    "tmdb_id": 238,    "title": "The Godfather",          "year": 1972, "genres": ["Crime", "Drama"],               "poster_url": null, "score": 0.76, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 389,    "tmdb_id": 389,    "title": "12 Angry Men",           "year": 1957, "genres": ["Crime", "Drama"],               "poster_url": null, "score": 0.74, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 424,    "tmdb_id": 424,    "title": "Schindler's List",       "year": 1993, "genres": ["Drama", "History"],             "poster_url": null, "score": 0.72, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 335984, "tmdb_id": 335984, "title": "Blade Runner 2049",      "year": 2017, "genres": ["Sci-Fi", "Drama"],              "poster_url": null, "score": 0.70, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 264660, "tmdb_id": 264660, "title": "Ex Machina",             "year": 2015, "genres": ["Drama", "Sci-Fi", "Thriller"],  "poster_url": null, "score": 0.68, "in_watchlist": false, "user_rating": null }
+      ]
+    },
+    {
+      "id": "user_based",
+      "label": "Viewers Like You Also Watched",
+      "model": "user_based",
+      "explanation": "Users with taste profiles closest to yours",
+      "movies": [
+        { "movie_id": 278,    "tmdb_id": 278,    "title": "The Shawshank Redemption",     "year": 1994, "genres": ["Drama"],                        "poster_url": null, "score": 0.91, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 240,    "tmdb_id": 240,    "title": "The Godfather Part II",        "year": 1974, "genres": ["Crime", "Drama"],                "poster_url": null, "score": 0.88, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 129,    "tmdb_id": 129,    "title": "Spirited Away",                "year": 2001, "genres": ["Animation", "Fantasy"],          "poster_url": null, "score": 0.84, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 19404,  "tmdb_id": 19404,  "title": "Dilwale Dulhania Le Jayenge", "year": 1995, "genres": ["Drama", "Romance"],              "poster_url": null, "score": 0.79, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 372058, "tmdb_id": 372058, "title": "Your Name",                   "year": 2016, "genres": ["Animation", "Drama", "Fantasy"],  "poster_url": null, "score": 0.77, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 244786, "tmdb_id": 244786, "title": "Whiplash",                    "year": 2014, "genres": ["Drama", "Music"],                 "poster_url": null, "score": 0.75, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 155,    "tmdb_id": 155,    "title": "The Dark Knight",              "year": 2008, "genres": ["Action", "Crime", "Drama"],       "poster_url": null, "score": 0.73, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 77,     "tmdb_id": 77,     "title": "Memento",                     "year": 2000, "genres": ["Mystery", "Thriller"],            "poster_url": null, "score": 0.71, "in_watchlist": false, "user_rating": null }
+      ]
+    },
+    {
+      "id": "latent_factor",
+      "label": "In Your Style — SVD Model",
+      "model": "svd",
+      "explanation": "Hidden patterns found in your rating habits",
+      "movies": [
+        { "movie_id": 769, "tmdb_id": 769, "title": "GoodFellas",         "year": 1990, "genres": ["Crime", "Drama"],                "poster_url": null, "score": 0.89, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 539, "tmdb_id": 539, "title": "Psycho",             "year": 1960, "genres": ["Horror", "Mystery", "Thriller"],  "poster_url": null, "score": 0.86, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 453, "tmdb_id": 453, "title": "Frida",              "year": 2002, "genres": ["Drama", "Romance"],              "poster_url": null, "score": 0.81, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 637, "tmdb_id": 637, "title": "Life Is Beautiful",  "year": 1997, "genres": ["Comedy", "Drama", "Romance"],    "poster_url": null, "score": 0.79, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 497, "tmdb_id": 497, "title": "The Green Mile",     "year": 1999, "genres": ["Crime", "Drama", "Fantasy"],     "poster_url": null, "score": 0.76, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 807, "tmdb_id": 807, "title": "Se7en",              "year": 1995, "genres": ["Crime", "Mystery", "Thriller"],  "poster_url": null, "score": 0.74, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 274, "tmdb_id": 274, "title": "The Silence of the Lambs", "year": 1991, "genres": ["Crime", "Drama", "Thriller"], "poster_url": null, "score": 0.72, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 168, "tmdb_id": 168, "title": "No Country for Old Men", "year": 2007, "genres": ["Crime", "Drama", "Thriller"], "poster_url": null, "score": 0.70, "in_watchlist": false, "user_rating": null }
+      ]
+    },
+    {
+      "id": "discovery",
+      "label": "Step Outside Your Comfort Zone",
+      "model": "ensemble",
+      "explanation": "High-diversity recommendations — films you wouldn't have picked yourself",
+      "movies": [
+        { "movie_id": 667257, "tmdb_id": 667257, "title": "The Whale",                          "year": 2022, "genres": ["Drama"],                        "poster_url": null, "score": 0.71, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 346364, "tmdb_id": 346364, "title": "It",                                 "year": 2017, "genres": ["Horror"],                       "poster_url": null, "score": 0.68, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 508442, "tmdb_id": 508442, "title": "Soul",                               "year": 2020, "genres": ["Animation", "Comedy", "Drama"],  "poster_url": null, "score": 0.65, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 324857, "tmdb_id": 324857, "title": "Spider-Man: Into the Spider-Verse", "year": 2018, "genres": ["Action", "Animation"],           "poster_url": null, "score": 0.63, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 49047,  "tmdb_id": 49047,  "title": "Gravity",                           "year": 2013, "genres": ["Sci-Fi", "Thriller"],             "poster_url": null, "score": 0.61, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 354912, "tmdb_id": 354912, "title": "Coco",                               "year": 2017, "genres": ["Animation", "Family", "Drama"],  "poster_url": null, "score": 0.59, "in_watchlist": false, "user_rating": null }
+      ]
+    },
+    {
+      "id": "trending",
+      "label": "Trending Now",
+      "model": "trending",
+      "explanation": "Films everyone is talking about right now",
+      "movies": [
+        { "movie_id": 872585, "tmdb_id": 872585, "title": "Oppenheimer",                       "year": 2023, "genres": ["Drama", "History"],              "poster_url": null, "score": 0.88, "rank": 1,  "in_watchlist": false, "user_rating": null },
+        { "movie_id": 346698, "tmdb_id": 346698, "title": "Barbie",                            "year": 2023, "genres": ["Comedy", "Adventure"],           "poster_url": null, "score": 0.81, "rank": 2,  "in_watchlist": false, "user_rating": null },
+        { "movie_id": 361743, "tmdb_id": 361743, "title": "Top Gun: Maverick",                 "year": 2022, "genres": ["Action", "Drama"],               "poster_url": null, "score": 0.79, "rank": 3,  "in_watchlist": false, "user_rating": null },
+        { "movie_id": 414906, "tmdb_id": 414906, "title": "The Batman",                        "year": 2022, "genres": ["Crime", "Action"],               "poster_url": null, "score": 0.77, "rank": 4,  "in_watchlist": false, "user_rating": null },
+        { "movie_id": 545611, "tmdb_id": 545611, "title": "Everything Everywhere All at Once", "year": 2022, "genres": ["Action", "Comedy", "Sci-Fi"],    "poster_url": null, "score": 0.74, "rank": 5,  "in_watchlist": false, "user_rating": null },
+        { "movie_id": 661374, "tmdb_id": 661374, "title": "Glass Onion",                       "year": 2022, "genres": ["Comedy", "Crime", "Mystery"],    "poster_url": null, "score": 0.71, "rank": 6,  "in_watchlist": false, "user_rating": null },
+        { "movie_id": 762441, "tmdb_id": 762441, "title": "A Quiet Place Part II",             "year": 2021, "genres": ["Horror", "Sci-Fi", "Thriller"],  "poster_url": null, "score": 0.68, "rank": 7,  "in_watchlist": false, "user_rating": null },
+        { "movie_id": 438631, "tmdb_id": 438631, "title": "Dune",                              "year": 2021, "genres": ["Adventure", "Drama", "Sci-Fi"],  "poster_url": null, "score": 0.65, "rank": 8,  "in_watchlist": false, "user_rating": null }
+      ]
+    },
+    {
+      "id": "genre_drama",
+      "label": "Top Drama Films",
+      "model": "genre:Drama",
+      "explanation": "The highest-rated dramatic films in cinema history",
+      "genres": ["Drama"],
+      "movies": [
+        { "movie_id": 278,    "tmdb_id": 278,    "title": "The Shawshank Redemption", "year": 1994, "genres": ["Drama"],              "poster_url": null, "score": 0.97, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 389,    "tmdb_id": 389,    "title": "12 Angry Men",             "year": 1957, "genres": ["Drama", "Crime"],     "poster_url": null, "score": 0.95, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 424,    "tmdb_id": 424,    "title": "Schindler's List",         "year": 1993, "genres": ["Drama", "History"],   "poster_url": null, "score": 0.94, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 637,    "tmdb_id": 637,    "title": "Life Is Beautiful",        "year": 1997, "genres": ["Drama", "Romance"],   "poster_url": null, "score": 0.92, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 497,    "tmdb_id": 497,    "title": "The Green Mile",           "year": 1999, "genres": ["Drama", "Fantasy"],   "poster_url": null, "score": 0.89, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 244786, "tmdb_id": 244786, "title": "Whiplash",                 "year": 2014, "genres": ["Drama", "Music"],     "poster_url": null, "score": 0.87, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 598,    "tmdb_id": 598,    "title": "City of God",              "year": 2002, "genres": ["Crime", "Drama"],     "poster_url": null, "score": 0.85, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 13,     "tmdb_id": 13,     "title": "Forrest Gump",             "year": 1994, "genres": ["Drama", "Comedy"],    "poster_url": null, "score": 0.83, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 453,    "tmdb_id": 453,    "title": "Frida",                    "year": 2002, "genres": ["Drama", "Romance"],   "poster_url": null, "score": 0.80, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 667257, "tmdb_id": 667257, "title": "The Whale",                "year": 2022, "genres": ["Drama"],              "poster_url": null, "score": 0.77, "in_watchlist": false, "user_rating": null }
+      ]
+    },
+    {
+      "id": "genre_thriller",
+      "label": "Thriller & Suspense",
+      "model": "genre:Thriller",
+      "explanation": "Edge-of-your-seat suspense films",
+      "genres": ["Thriller"],
+      "movies": [
+        { "movie_id": 680,  "tmdb_id": 680,  "title": "Pulp Fiction",              "year": 1994, "genres": ["Thriller", "Crime"],            "poster_url": null, "score": 0.93, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 807,  "tmdb_id": 807,  "title": "Se7en",                     "year": 1995, "genres": ["Crime", "Mystery", "Thriller"], "poster_url": null, "score": 0.91, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 539,  "tmdb_id": 539,  "title": "Psycho",                    "year": 1960, "genres": ["Horror", "Thriller"],           "poster_url": null, "score": 0.89, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 550,  "tmdb_id": 550,  "title": "Fight Club",                "year": 1999, "genres": ["Drama", "Thriller"],            "poster_url": null, "score": 0.88, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 274,  "tmdb_id": 274,  "title": "The Silence of the Lambs", "year": 1991, "genres": ["Crime", "Drama", "Thriller"],   "poster_url": null, "score": 0.86, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 77,   "tmdb_id": 77,   "title": "Memento",                   "year": 2000, "genres": ["Mystery", "Thriller"],          "poster_url": null, "score": 0.84, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 155,  "tmdb_id": 155,  "title": "The Dark Knight",           "year": 2008, "genres": ["Action", "Crime", "Drama"],     "poster_url": null, "score": 0.82, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 168,  "tmdb_id": 168,  "title": "No Country for Old Men",    "year": 2007, "genres": ["Crime", "Drama", "Thriller"],   "poster_url": null, "score": 0.80, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 264660, "tmdb_id": 264660, "title": "Ex Machina",            "year": 2015, "genres": ["Drama", "Sci-Fi", "Thriller"],  "poster_url": null, "score": 0.77, "in_watchlist": false, "user_rating": null }
+      ]
+    },
+    {
+      "id": "genre_scifi",
+      "label": "Science Fiction",
+      "model": "genre:Sci-Fi",
+      "explanation": "Travel to other worlds, other times, other minds",
+      "genres": ["Sci-Fi"],
+      "movies": [
+        { "movie_id": 27205,  "tmdb_id": 27205,  "title": "Inception",          "year": 2010, "genres": ["Action", "Sci-Fi"],             "poster_url": null, "score": 0.95, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 157336, "tmdb_id": 157336, "title": "Interstellar",        "year": 2014, "genres": ["Adventure", "Drama", "Sci-Fi"], "poster_url": null, "score": 0.93, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 603,    "tmdb_id": 603,    "title": "The Matrix",          "year": 1999, "genres": ["Sci-Fi", "Action"],             "poster_url": null, "score": 0.91, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 335984, "tmdb_id": 335984, "title": "Blade Runner 2049",   "year": 2017, "genres": ["Sci-Fi", "Drama"],              "poster_url": null, "score": 0.88, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 264660, "tmdb_id": 264660, "title": "Ex Machina",          "year": 2015, "genres": ["Drama", "Sci-Fi", "Thriller"],  "poster_url": null, "score": 0.85, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 11,     "tmdb_id": 11,     "title": "Star Wars",           "year": 1977, "genres": ["Action", "Sci-Fi"],             "poster_url": null, "score": 0.82, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 49047,  "tmdb_id": 49047,  "title": "Gravity",             "year": 2013, "genres": ["Sci-Fi", "Thriller"],           "poster_url": null, "score": 0.79, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 438631, "tmdb_id": 438631, "title": "Dune",                "year": 2021, "genres": ["Adventure", "Drama", "Sci-Fi"], "poster_url": null, "score": 0.76, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 10681,  "tmdb_id": 10681,  "title": "WALL-E",              "year": 2008, "genres": ["Animation", "Sci-Fi", "Family"],"poster_url": null, "score": 0.73, "in_watchlist": false, "user_rating": null }
+      ]
+    },
+    {
+      "id": "genre_animation",
+      "label": "Animation & Fantasy",
+      "model": "genre:Animation",
+      "explanation": "World-class animation and fantasy storytelling",
+      "genres": ["Animation", "Fantasy"],
+      "movies": [
+        { "movie_id": 129,    "tmdb_id": 129,    "title": "Spirited Away",                    "year": 2001, "genres": ["Animation", "Fantasy"],          "poster_url": null, "score": 0.96, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 372058, "tmdb_id": 372058, "title": "Your Name",                        "year": 2016, "genres": ["Animation", "Drama", "Romance"],  "poster_url": null, "score": 0.93, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 508442, "tmdb_id": 508442, "title": "Soul",                             "year": 2020, "genres": ["Animation", "Comedy", "Drama"],   "poster_url": null, "score": 0.90, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 324857, "tmdb_id": 324857, "title": "Spider-Man: Into the Spider-Verse","year": 2018, "genres": ["Action", "Animation"],            "poster_url": null, "score": 0.88, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 10681,  "tmdb_id": 10681,  "title": "WALL-E",                           "year": 2008, "genres": ["Animation", "Family", "Sci-Fi"],  "poster_url": null, "score": 0.85, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 354912, "tmdb_id": 354912, "title": "Coco",                             "year": 2017, "genres": ["Animation", "Family", "Drama"],   "poster_url": null, "score": 0.82, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 12,     "tmdb_id": 12,     "title": "Finding Nemo",                     "year": 2003, "genres": ["Animation", "Family"],            "poster_url": null, "score": 0.79, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 14160,  "tmdb_id": 14160,  "title": "Up",                               "year": 2009, "genres": ["Animation", "Adventure", "Drama"],"poster_url": null, "score": 0.76, "in_watchlist": false, "user_rating": null }
+      ]
+    },
+    {
+      "id": "genre_crime",
+      "label": "Crime & Mystery",
+      "model": "genre:Crime",
+      "explanation": "Investigations, mafias, and gripping detective stories",
+      "genres": ["Crime"],
+      "movies": [
+        { "movie_id": 238, "tmdb_id": 238, "title": "The Godfather",            "year": 1972, "genres": ["Crime", "Drama"],              "poster_url": null, "score": 0.98, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 240, "tmdb_id": 240, "title": "The Godfather Part II",    "year": 1974, "genres": ["Crime", "Drama"],              "poster_url": null, "score": 0.95, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 769, "tmdb_id": 769, "title": "GoodFellas",               "year": 1990, "genres": ["Crime", "Drama"],              "poster_url": null, "score": 0.92, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 155, "tmdb_id": 155, "title": "The Dark Knight",          "year": 2008, "genres": ["Action", "Crime"],             "poster_url": null, "score": 0.90, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 598, "tmdb_id": 598, "title": "City of God",              "year": 2002, "genres": ["Crime", "Drama"],              "poster_url": null, "score": 0.87, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 807, "tmdb_id": 807, "title": "Se7en",                    "year": 1995, "genres": ["Crime", "Thriller"],           "poster_url": null, "score": 0.84, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 680, "tmdb_id": 680, "title": "Pulp Fiction",             "year": 1994, "genres": ["Crime", "Thriller"],           "poster_url": null, "score": 0.81, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 274, "tmdb_id": 274, "title": "The Silence of the Lambs","year": 1991, "genres": ["Crime", "Drama", "Thriller"],  "poster_url": null, "score": 0.78, "in_watchlist": false, "user_rating": null },
+        { "movie_id": 168, "tmdb_id": 168, "title": "No Country for Old Men",  "year": 2007, "genres": ["Crime", "Drama", "Thriller"],  "poster_url": null, "score": 0.75, "in_watchlist": false, "user_rating": null }
+      ]
+    }
+  ]
+}

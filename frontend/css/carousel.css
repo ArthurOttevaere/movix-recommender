@@ -1,0 +1,368 @@
+.carousels-container {
+  position: relative;
+  z-index: 2;
+  margin-top: -80px;
+  padding-bottom: 60px;
+}
+
+.carousel {
+  padding: 20px 4%;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.carousel-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.carousel-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+}
+
+.carousel-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 16px;
+  background-color: var(--accent);
+  border-radius: 4px;
+  margin-right: 10px;
+}
+
+.carousel-model-badge {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 500;
+  padding: 2px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 20px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+
+.carousel:hover .carousel-model-badge {
+  opacity: 1;
+}
+
+.carousel-wrapper {
+  position: relative;
+}
+
+/* Soft fade at the left/right edges of the track to hint at horizontal scroll (Netflix-style). */
+.carousel-track {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 32px, #000 calc(100% - 32px), transparent 100%);
+          mask-image: linear-gradient(to right, transparent 0, #000 32px, #000 calc(100% - 32px), transparent 100%);
+}
+
+.carousel-track {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-y;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 8px;
+  padding-top: 8px;
+}
+
+.carousel-track::-webkit-scrollbar {
+  display: none;
+}
+
+/* Navigation arrows — modern circular pill, no full-height bar */
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  background: rgba(20, 20, 20, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  opacity: 0;
+  border-radius: 50%;
+  transform: translateY(-50%) scale(0.9);
+  transition: opacity 0.25s ease, background 0.2s, transform 0.2s, border-color 0.2s;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.carousel-arrow:hover {
+  background: rgba(20, 20, 20, 0.85);
+  border-color: rgba(255, 255, 255, 0.22);
+  transform: translateY(-50%) scale(1.06);
+}
+
+.carousel-arrow svg {
+  width: 22px;
+  height: 22px;
+}
+
+.carousel-arrow-left  { left: 8px; }
+.carousel-arrow-right { right: 8px; }
+
+.carousel-wrapper:hover .carousel-arrow {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+
+.carousel-wrapper:hover .carousel-arrow:hover {
+  transform: translateY(-50%) scale(1.08);
+}
+
+/* Movie cards */
+.movie-card {
+  flex: 0 0 185px;
+  scroll-snap-align: start;
+  border-radius: var(--card-radius);
+  overflow: visible;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  z-index: 1;
+}
+
+.movie-card:hover {
+  transform: scale(1.12);
+  z-index: 10;
+}
+
+.movie-card-inner {
+  border-radius: var(--card-radius);
+  overflow: hidden;
+  position: relative;
+  width: 185px;
+  height: 278px;
+}
+
+.movie-card img {
+  width: 100%;
+  height: 278px;
+  object-fit: cover;
+  display: block;
+  background: var(--bg-elevated);
+}
+
+.card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 12px;
+  gap: 4px;
+}
+
+.movie-card:hover .card-overlay {
+  opacity: 1;
+}
+
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  line-height: 1.3;
+}
+
+.card-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.btn-watchlist-card {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--text-secondary);
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color var(--transition), background var(--transition);
+  flex-shrink: 0;
+}
+
+.btn-watchlist-card svg {
+  width: 14px;
+  height: 14px;
+}
+
+.btn-watchlist-card.in-list {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.btn-watchlist-card:hover {
+  border-color: white;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.btn-watchlist-card .wl-icon-hover {
+  display: none;
+}
+
+.btn-watchlist-card.in-list:hover .wl-icon-default {
+  display: none;
+}
+
+.btn-watchlist-card.in-list:hover .wl-icon-hover {
+  display: block;
+}
+
+.btn-watchlist-card.in-list:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.card-score {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--success);
+  margin-left: auto;
+}
+
+/* Progress bar (Continue Watching) */
+.card-progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.2);
+  z-index: 2;
+}
+
+.card-progress-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.card-progress-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-left: auto;
+}
+
+/* NEW badge */
+.badge-new {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: var(--accent);
+  color: white;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 3px 6px;
+  border-radius: 2px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  z-index: 3;
+}
+
+/* ── Top 10 — Netflix-style giant rank number passing behind the poster ──── */
+.movie-card.is-top10 {
+  flex: 0 0 260px;            /* poster (185) + visible part of digit (~75 px) */
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+}
+
+.movie-card.is-top10 .movie-card-inner {
+  width: 185px;
+  height: 278px;
+  flex-shrink: 0;
+  z-index: 2;                 /* poster sits IN FRONT of the rank number */
+  position: relative;
+}
+
+.movie-card.is-top10 .top10-rank {
+  position: relative;
+  flex: 0 0 130px;
+  margin-right: -55px;        /* lighter overlap — digit mostly visible, only the right edge tucks behind */
+  font-family: 'Bebas Neue', 'Impact', sans-serif;
+  font-size: 15rem;
+  line-height: 0.8;
+  letter-spacing: -0.05em;
+  color: #000;
+  -webkit-text-stroke: 3.5px rgba(255, 255, 255, 0.95);
+  text-shadow:
+     -1px 0  0 rgba(255,255,255,0.18),
+      0 -1px 0 rgba(255,255,255,0.18),
+      3px 3px 18px rgba(0,0,0,0.75);
+  pointer-events: none;
+  user-select: none;
+  align-self: flex-end;
+  z-index: 1;                 /* explicitly behind the poster */
+  transform-origin: bottom right;
+  transition: opacity 0.35s ease, -webkit-text-stroke-color 0.35s ease, transform 0.35s ease;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+/* When any card in the row is hovered, dim the non-hovered numbers */
+.carousel-track:hover .movie-card.is-top10:not(:hover) .top10-rank {
+  opacity: 0.35;
+  -webkit-text-stroke-color: rgba(255, 255, 255, 0.4);
+}
+
+.movie-card.is-top10:hover .top10-rank {
+  opacity: 1;
+  -webkit-text-stroke-color: rgba(255, 255, 255, 1);
+  transform: scale(1.04);
+}
+
+/* The card's scale on hover (1.12) would translate the number too — pin it. */
+.movie-card.is-top10:hover {
+  transform: none;
+}
+.movie-card.is-top10:hover .movie-card-inner {
+  transform: scale(1.12);
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.movie-card.is-top10 .movie-card-inner {
+  transform-origin: center bottom;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Skeleton cards — shimmer defined in main.css */
+
+@media (max-width: 600px) {
+  .movie-card {
+    flex: 0 0 130px;
+  }
+  .movie-card-inner {
+    width: 130px;
+    height: 195px;
+  }
+  .movie-card img {
+    height: 195px;
+  }
+}

@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Movix — Who's watching?</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Bebas+Neue&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/profiles.css">
+</head>
+
+<body>
+
+  <div class="profiles-page">
+    <a href="#" class="profiles-logo" aria-label="Movix">
+      <img src="img/logo.svg" alt="Movix">
+    </a>
+
+    <h1 class="profiles-title">Who's watching?</h1>
+
+    <div class="profiles-grid" id="profiles-grid"></div>
+
+    <button class="profiles-manage-btn" id="profiles-manage-btn">Manage Profiles</button>
+  </div>
+
+  <!-- ── Create profile overlay (full-screen) ─────────────────────────────── -->
+  <div class="profile-create-overlay" id="profile-create-overlay" role="dialog" aria-modal="true">
+    <button class="profile-overlay-close" id="profile-create-close" aria-label="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      Back
+    </button>
+    <div class="profile-create-modal">
+
+      <div class="profile-modal-preview-wrap">
+        <img class="profile-modal-preview" id="profile-create-preview" src="" alt="Profile preview">
+      </div>
+
+      <h2>Add a Profile</h2>
+      <p>Personalise your experience from the start.</p>
+
+      <input type="text" class="profile-create-input" id="profile-create-name" placeholder="First name" maxlength="20"
+        autocomplete="off" spellcheck="false">
+
+      <div class="profile-avatar-picker" id="profile-avatar-picker"></div>
+
+      <div class="profile-optional-section">
+        <div class="profile-optional-header">
+          <span class="profile-optional-label">Optional</span>
+        </div>
+        <div class="profile-create-row">
+          <div class="profile-create-field">
+            <label class="profile-create-label">Age</label>
+            <div class="age-picker-wrap">
+              <div class="age-drum-view" id="profile-create-age-drum"></div>
+              <input type="number" class="age-manual-input" id="profile-create-age"
+                min="1" max="120" placeholder="or type your age" autocomplete="off">
+            </div>
+          </div>
+          <div class="profile-create-field">
+            <label class="profile-create-label">Gender</label>
+            <div class="profile-gender-pills" id="profile-gender-pills">
+              <button type="button" class="profile-gender-pill" data-value="male">Male</button>
+              <button type="button" class="profile-gender-pill" data-value="female">Female</button>
+              <button type="button" class="profile-gender-pill" data-value="other">Other</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-create-actions">
+        <button class="profile-create-cancel" id="profile-create-cancel">Cancel</button>
+        <button class="profile-create-save" id="profile-create-save" disabled>Continue →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Edit profile overlay (full-screen) ────────────────────────────────── -->
+  <div class="profile-create-overlay" id="profile-edit-overlay" role="dialog" aria-modal="true">
+    <button class="profile-overlay-close" id="profile-edit-close" aria-label="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      Back
+    </button>
+    <div class="profile-create-modal">
+
+      <div class="profile-modal-preview-wrap">
+        <img class="profile-modal-preview" id="profile-edit-preview" src="" alt="Profile preview">
+      </div>
+
+      <h2>Edit Profile</h2>
+      <p>Update your details below.</p>
+
+      <input type="text" class="profile-create-input" id="profile-edit-name" placeholder="First name" maxlength="20"
+        autocomplete="off" spellcheck="false">
+
+      <div class="profile-avatar-picker" id="profile-edit-avatar-picker"></div>
+
+      <div class="profile-optional-section">
+        <div class="profile-optional-header">
+          <span class="profile-optional-label">Optional</span>
+        </div>
+        <div class="profile-create-row">
+          <div class="profile-create-field">
+            <label class="profile-create-label">Age</label>
+            <div class="age-picker-wrap">
+              <div class="age-drum-view" id="profile-edit-age-drum"></div>
+              <input type="number" class="age-manual-input" id="profile-edit-age"
+                min="1" max="120" placeholder="or type your age" autocomplete="off">
+            </div>
+          </div>
+          <div class="profile-create-field">
+            <label class="profile-create-label">Gender</label>
+            <div class="profile-gender-pills" id="profile-edit-gender-pills">
+              <button type="button" class="profile-gender-pill" data-value="male">Male</button>
+              <button type="button" class="profile-gender-pill" data-value="female">Female</button>
+              <button type="button" class="profile-gender-pill" data-value="other">Other</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-create-actions">
+        <button class="profile-create-cancel" id="profile-edit-cancel">Cancel</button>
+        <button class="profile-create-save" id="profile-edit-save">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="js/profiles.js"></script>
+  <script>
+    // ─── Age drum picker ──────────────────────────────────────────────────────
+    class AgePicker {
+      constructor(drumEl, inputEl) {
+        this.drum = drumEl;
+        this.input = inputEl;
+        this.ITEM_H = 32;
+        this.value = null;
+        this._touchStartY = 0;
+        this._touchStartVal = 18;
+        this._render();
+        this._bind();
+      }
+
+      getValue() { return this.value; }
+
+      setValue(v) {
+        const parsed = parseInt(v);
+        this.value = (v === null || v === '' || isNaN(parsed))
+          ? null
+          : Math.min(Math.max(parsed, 1), 120);
+        this.input.value = this.value !== null ? this.value : '';
+        this._render();
+      }
+
+      reset() {
+        this.value = null;
+        this.input.value = '';
+        this._render();
+      }
+
+      _render() {
+        this.drum.innerHTML = '';
+        for (let offset = -2; offset <= 2; offset++) {
+          const item = document.createElement('div');
+          const age = this.value !== null ? this.value + offset : null;
+          const valid = age !== null && age >= 1 && age <= 120;
+          const cls = offset === 0 ? 'selected' : Math.abs(offset) === 1 ? 'near' : 'far';
+          item.className = `age-drum-item ${cls}`;
+
+          if (this.value === null && offset === 0) {
+            item.textContent = '—';
+            item.classList.add('unset');
+          } else {
+            item.textContent = valid ? age : '';
+          }
+
+          if (valid && offset !== 0) {
+            item.addEventListener('click', () => this.setValue(age));
+          }
+          this.drum.appendChild(item);
+        }
+      }
+
+      _bind() {
+        // Mouse wheel on drum
+        this.drum.addEventListener('wheel', e => {
+          e.preventDefault();
+          const cur = this.value !== null ? this.value : 18;
+          this.setValue(Math.min(Math.max(cur + (e.deltaY > 0 ? 1 : -1), 1), 120));
+        }, { passive: false });
+
+        // Touch drag on drum
+        this.drum.addEventListener('touchstart', e => {
+          this._touchStartY = e.touches[0].clientY;
+          this._touchStartVal = this.value !== null ? this.value : 18;
+        }, { passive: true });
+        this.drum.addEventListener('touchmove', e => {
+          const delta = Math.round((this._touchStartY - e.touches[0].clientY) / this.ITEM_H);
+          this.setValue(Math.min(Math.max(this._touchStartVal + delta, 1), 120));
+        }, { passive: true });
+
+        // Keyboard input syncs to drum in real time
+        this.input.addEventListener('input', () => {
+          const raw = parseInt(this.input.value);
+          if (this.input.value === '') {
+            this.value = null;
+            this._render();
+          } else if (!isNaN(raw) && raw >= 1 && raw <= 120) {
+            this.value = raw;
+            this._render();
+          }
+        });
+      }
+    }
+
+    // ─── Page state ───────────────────────────────────────────────────────────
+    let manageMode = false;
+    let selectedAvatar = null;
+    let selectedGender = null;
+    let createAgePicker, editAgePicker;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const active = profiles.active();
+      const skip = new URLSearchParams(location.search).get('switch') !== '1';
+      if (skip && active && active.onboarded && !!pstore.get('user_token')) {
+        location.href = 'index.html';
+        return;
+      }
+      renderGrid();
+      renderAvatarPicker();
+      wireModal();
+
+      createAgePicker = new AgePicker(
+        document.getElementById('profile-create-age-drum'),
+        document.getElementById('profile-create-age')
+      );
+      editAgePicker = new AgePicker(
+        document.getElementById('profile-edit-age-drum'),
+        document.getElementById('profile-edit-age')
+      );
+    });
+
+    // ─── Grid ────────────────────────────────────────────────────────────────
+    function renderGrid() {
+      const grid = document.getElementById('profiles-grid');
+      const list = profiles.list();
+      grid.innerHTML = '';
+
+      list.forEach(p => {
+        const wrap = document.createElement('div');
+        wrap.className = 'profile-tile-wrap';
+
+        const tile = document.createElement('button');
+        tile.className = 'profile-tile';
+        tile.type = 'button';
+        tile.innerHTML = `
+          <img class="profile-tile-avatar" src="${profiles.avatarSvg(p.avatar, p.name)}" alt="${escapeHtml(p.name)}">
+          <span class="profile-tile-name">${escapeHtml(p.name)}</span>
+        `;
+        tile.addEventListener('click', () => {
+          if (manageMode) return;
+          profiles.select(p.id);
+          const hasToken = !!pstore.get('user_token');
+          location.href = (p.onboarded && hasToken) ? 'index.html' : 'onboarding.html';
+        });
+        wrap.appendChild(tile);
+
+        const del = document.createElement('button');
+        del.className = 'profile-tile-delete';
+        del.title = 'Delete profile';
+        del.innerHTML = '✕';
+        del.addEventListener('click', e => {
+          e.stopPropagation();
+          if (confirm(`Delete profile "${p.name}"? This wipes its ratings and list.`)) {
+            profiles.delete(p.id);
+            renderGrid();
+          }
+        });
+        if (manageMode) del.style.opacity = '1';
+        wrap.appendChild(del);
+
+        const edit = document.createElement('button');
+        edit.className = 'profile-tile-edit';
+        edit.title = 'Edit profile';
+        edit.innerHTML = '✎';
+        edit.style.opacity = manageMode ? '1' : '0';
+        edit.style.pointerEvents = manageMode ? 'auto' : 'none';
+        edit.addEventListener('click', e => {
+          e.stopPropagation();
+          openEdit(p);
+        });
+        wrap.appendChild(edit);
+
+        grid.appendChild(wrap);
+      });
+
+      if (list.length < 8 && !manageMode) {
+        const add = document.createElement('button');
+        add.className = 'profile-tile add';
+        add.type = 'button';
+        add.innerHTML = `
+          <span class="profile-tile-avatar">+</span>
+          <span class="profile-tile-name">Add Profile</span>
+        `;
+        add.addEventListener('click', openCreate);
+        grid.appendChild(add);
+      }
+    }
+
+    // ─── Create modal ────────────────────────────────────────────────────────
+    function renderAvatarPicker() {
+      const wrap = document.getElementById('profile-avatar-picker');
+      wrap.innerHTML = '';
+      PROFILE_AVATARS.forEach(av => {
+        const btn = document.createElement('button');
+        btn.className = 'profile-avatar-choice';
+        btn.type = 'button';
+        btn.dataset.avatar = av.id;
+        btn.innerHTML = `<img src="${profiles.avatarSvg(av.id, '')}" alt="${av.label}">`;
+        btn.addEventListener('click', () => {
+          selectedAvatar = av.id;
+          wrap.querySelectorAll('.profile-avatar-choice').forEach(b => b.classList.toggle('active', b === btn));
+          updateCreatePreview();
+          updateSaveEnabled();
+        });
+        wrap.appendChild(btn);
+      });
+      const first = wrap.querySelector('.profile-avatar-choice');
+      if (first) first.click();
+    }
+
+    function updateCreatePreview() {
+      const name = document.getElementById('profile-create-name').value.trim();
+      const avatarId = selectedAvatar || PROFILE_AVATARS[0].id;
+      document.getElementById('profile-create-preview').src = profiles.avatarSvg(avatarId, name);
+    }
+
+    function openCreate() {
+      document.getElementById('profile-create-overlay').classList.add('open');
+      document.getElementById('profile-create-name').value = '';
+      selectedGender = null;
+      document.querySelectorAll('#profile-gender-pills .profile-gender-pill').forEach(p => p.classList.remove('active'));
+      if (createAgePicker) createAgePicker.reset();
+      updateCreatePreview();
+      document.getElementById('profile-create-name').focus();
+      updateSaveEnabled();
+    }
+
+    function closeCreate() {
+      document.getElementById('profile-create-overlay').classList.remove('open');
+    }
+
+    function updateSaveEnabled() {
+      const name = document.getElementById('profile-create-name').value.trim();
+      document.getElementById('profile-create-save').disabled = !(name && selectedAvatar);
+    }
+
+    function wireModal() {
+      document.getElementById('profile-create-name').addEventListener('input', () => {
+        updateSaveEnabled();
+        updateCreatePreview();
+      });
+
+      // Gender pills — create
+      document.querySelectorAll('#profile-gender-pills .profile-gender-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+          if (selectedGender === pill.dataset.value) {
+            selectedGender = null;
+            pill.classList.remove('active');
+          } else {
+            selectedGender = pill.dataset.value;
+            document.querySelectorAll('#profile-gender-pills .profile-gender-pill')
+              .forEach(p => p.classList.toggle('active', p === pill));
+          }
+        });
+      });
+
+      document.getElementById('profile-create-cancel').addEventListener('click', closeCreate);
+      document.getElementById('profile-create-close').addEventListener('click', closeCreate);
+      document.getElementById('profile-create-overlay').addEventListener('click', e => {
+        if (e.target.id === 'profile-create-overlay') closeCreate();
+      });
+      document.getElementById('profile-create-save').addEventListener('click', () => {
+        const name = document.getElementById('profile-create-name').value.trim();
+        if (!name || !selectedAvatar) return;
+        const age = createAgePicker ? createAgePicker.getValue() : null;
+        const p = profiles.create(name, selectedAvatar, { age, gender: selectedGender });
+        profiles.select(p.id);
+        location.href = 'onboarding.html';
+      });
+
+      // Edit modal
+      document.getElementById('profile-edit-name').addEventListener('input', updateEditPreview);
+
+      // Gender pills — edit
+      document.querySelectorAll('#profile-edit-gender-pills .profile-gender-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+          if (editSelectedGender === pill.dataset.value) {
+            editSelectedGender = null;
+            pill.classList.remove('active');
+          } else {
+            editSelectedGender = pill.dataset.value;
+            document.querySelectorAll('#profile-edit-gender-pills .profile-gender-pill')
+              .forEach(p => p.classList.toggle('active', p === pill));
+          }
+        });
+      });
+
+      document.getElementById('profile-edit-cancel').addEventListener('click', closeEdit);
+      document.getElementById('profile-edit-close').addEventListener('click', closeEdit);
+      document.getElementById('profile-edit-overlay').addEventListener('click', e => {
+        if (e.target.id === 'profile-edit-overlay') closeEdit();
+      });
+      document.getElementById('profile-edit-save').addEventListener('click', saveEdit);
+
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { closeCreate(); closeEdit(); }
+      });
+
+      document.getElementById('profiles-manage-btn').addEventListener('click', () => {
+        manageMode = !manageMode;
+        document.getElementById('profiles-manage-btn').textContent = manageMode ? 'Done' : 'Manage Profiles';
+        renderGrid();
+      });
+    }
+
+    // ─── Edit modal ──────────────────────────────────────────────────────────
+    let editingProfileId = null;
+    let editSelectedAvatar = null;
+    let editSelectedGender = null;
+
+    function renderEditAvatarPicker(currentAvatarId) {
+      const wrap = document.getElementById('profile-edit-avatar-picker');
+      wrap.innerHTML = '';
+      PROFILE_AVATARS.forEach(av => {
+        const btn = document.createElement('button');
+        btn.className = 'profile-avatar-choice';
+        btn.type = 'button';
+        btn.dataset.avatar = av.id;
+        btn.innerHTML = `<img src="${profiles.avatarSvg(av.id, '')}" alt="${av.label}">`;
+        if (av.id === currentAvatarId) {
+          btn.classList.add('active');
+          editSelectedAvatar = av.id;
+        }
+        btn.addEventListener('click', () => {
+          editSelectedAvatar = av.id;
+          wrap.querySelectorAll('.profile-avatar-choice').forEach(b => b.classList.toggle('active', b === btn));
+          updateEditPreview();
+        });
+        wrap.appendChild(btn);
+      });
+    }
+
+    function updateEditPreview() {
+      const name = document.getElementById('profile-edit-name').value.trim();
+      const avatarId = editSelectedAvatar || PROFILE_AVATARS[0].id;
+      document.getElementById('profile-edit-preview').src = profiles.avatarSvg(avatarId, name);
+    }
+
+    function openEdit(profile) {
+      editingProfileId = profile.id;
+      document.getElementById('profile-edit-name').value = profile.name || '';
+      editSelectedGender = profile.gender || null;
+      document.querySelectorAll('#profile-edit-gender-pills .profile-gender-pill').forEach(p => {
+        p.classList.toggle('active', p.dataset.value === editSelectedGender);
+      });
+      renderEditAvatarPicker(profile.avatar);
+      if (editAgePicker) editAgePicker.setValue(profile.age || null);
+      updateEditPreview();
+      document.getElementById('profile-edit-overlay').classList.add('open');
+      document.getElementById('profile-edit-name').focus();
+    }
+
+    function closeEdit() {
+      document.getElementById('profile-edit-overlay').classList.remove('open');
+      editingProfileId = null;
+    }
+
+    function saveEdit() {
+      if (!editingProfileId) return;
+      const name = document.getElementById('profile-edit-name').value.trim();
+      if (!name) return;
+      const age = editAgePicker ? editAgePicker.getValue() : null;
+      profiles.update(editingProfileId, { name, age, gender: editSelectedGender, avatar: editSelectedAvatar });
+      closeEdit();
+      renderGrid();
+    }
+
+    function escapeHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = str || '';
+      return d.innerHTML;
+    }
+  </script>
+</body>
+
+</html>

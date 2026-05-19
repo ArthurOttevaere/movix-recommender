@@ -1,0 +1,43 @@
+{
+  "total_ratings": 12,
+  "mean_rating": 4.1,
+  "hours_watched": 156,
+  "completion_rate": 82,
+  "streak_days": 5,
+  "member_since": "2026-01-15",
+  "top_genres": [
+    { "genre": "Drama",    "count": 6, "avg_rating": 4.3 },
+    { "genre": "Thriller", "count": 4, "avg_rating": 3.9 },
+    { "genre": "Sci-Fi",   "count": 3, "avg_rating": 4.6 },
+    { "genre": "Crime",    "count": 3, "avg_rating": 3.7 },
+    { "genre": "Animation","count": 2, "avg_rating": 4.5 }
+  ],
+  "rating_distribution": { "1": 0, "2": 1, "3": 2, "4": 5, "5": 4 },
+  "feature_profile": {
+    "Drama":     0.38,
+    "Thriller":  0.28,
+    "Sci-Fi":    0.18,
+    "Crime":     0.10,
+    "Animation": 0.06
+  },
+  "badge": {
+    "title": "Drama Expert",
+    "description": "Rated 6+ Drama films with a high average score",
+    "icon": "🎭"
+  },
+  "rating_history": [
+    { "movie_id": 550,    "tmdb_id": 550,    "title": "Fight Club",              "rating": 4.5, "timestamp": "2026-05-14T20:00:00" },
+    { "movie_id": 27205,  "tmdb_id": 27205,  "title": "Inception",               "rating": 5.0, "timestamp": "2026-05-14T20:15:00" },
+    { "movie_id": 157336, "tmdb_id": 157336, "title": "Interstellar",             "rating": 4.5, "timestamp": "2026-05-14T20:30:00" },
+    { "movie_id": 278,    "tmdb_id": 278,    "title": "The Shawshank Redemption", "rating": 5.0, "timestamp": "2026-05-13T19:00:00" },
+    { "movie_id": 680,    "tmdb_id": 680,    "title": "Pulp Fiction",             "rating": 4.0, "timestamp": "2026-05-13T21:00:00" },
+    { "movie_id": 238,    "tmdb_id": 238,    "title": "The Godfather",            "rating": 5.0, "timestamp": "2026-05-12T20:00:00" },
+    { "movie_id": 769,    "tmdb_id": 769,    "title": "GoodFellas",               "rating": 4.0, "timestamp": "2026-05-11T20:00:00" },
+    { "movie_id": 129,    "tmdb_id": 129,    "title": "Spirited Away",            "rating": 4.5, "timestamp": "2026-05-10T20:00:00" },
+    { "movie_id": 603,    "tmdb_id": 603,    "title": "The Matrix",               "rating": 5.0, "timestamp": "2026-05-09T21:00:00" },
+    { "movie_id": 244786, "tmdb_id": 244786, "title": "Whiplash",                 "rating": 4.0, "timestamp": "2026-05-08T19:30:00" },
+    { "movie_id": 807,    "tmdb_id": 807,    "title": "Se7en",                    "rating": 3.5, "timestamp": "2026-05-07T20:00:00" },
+    { "movie_id": 155,    "tmdb_id": 155,    "title": "The Dark Knight",          "rating": 5.0, "timestamp": "2026-05-06T20:00:00" }
+  ],
+  "watchlist": []
+}
