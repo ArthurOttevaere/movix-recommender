@@ -4,4 +4,6 @@ pandas
 scikit-learn
 matplotlib
 jupyter
-spicy
+scipy
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
