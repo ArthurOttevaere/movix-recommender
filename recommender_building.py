@@ -173,7 +173,7 @@ def build_augmented_trainset(implicit_ratings_df: pd.DataFrame):
 # FONCTION 3 : entraîner le modèle et sauvegarder le pickle
 # ─────────────────────────────────────────────────────────────────────────────────
 
-def train_and_save(trainset, artifact_path: str = "backend/artifacts/svd_model_lenny.pkl"):
+def train_and_save(trainset, artifact_path: str = "backend/artifacts/svd_model.pkl"):
     """
     Entraîne un SVD sur le trainset augmenté et sauvegarde le modèle en pickle.
     Utilise les meilleurs paramètres trouvés par GridSearchCV.
@@ -207,7 +207,7 @@ def train_and_save(trainset, artifact_path: str = "backend/artifacts/svd_model_l
 
 if __name__ == "__main__":
     LIBRARY_PATH  = "library_lenny.csv"
-    ARTIFACT_PATH = "backend/artifacts/svd_model_lenny.pkl"
+    ARTIFACT_PATH = "backend/artifacts/svd_model.pkl"
 
     print("=== Workshop 2 — Implicit Library ===\n")
 
