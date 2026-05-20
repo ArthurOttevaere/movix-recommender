@@ -1,0 +1,9 @@
+fastapi>=0.110,<1.0
+uvicorn[standard]>=0.27
+pydantic>=2.6,<3.0
+pandas>=2.0
+numpy<2.0
+scikit-learn>=1.3
+scikit-surprise==1.1.4
+httpx>=0.27   # used by FastAPI TestClient
+pytest>=8.0

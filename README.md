@@ -1,6 +1,26 @@
 
 # MLSMM2156 - Recommender Systems - Group 3
 
+## Local setup (frontend credentials)
+
+The frontend reads its credentials from `frontend/config.js`, which is **git-ignored**
+so your real API keys stay local. After cloning the repo, copy the template and
+fill in your own keys:
+
+```bash
+cp frontend/config.example.js frontend/config.js
+# then edit frontend/config.js and paste in:
+#  - TMDB_API_KEY  (free: https://www.themoviedb.org/settings/api)
+#  - GEMINI_API_KEY (optional, free: https://aistudio.google.com/apikey)
+```
+
+Never commit `frontend/config.js`. Never paste real keys into `config.example.js`.
+
+For the backend, see [`backend/README.md`](backend/README.md) and the partner
+handoff guide [`backend/CONTRIBUTING_HYBRID.md`](backend/CONTRIBUTING_HYBRID.md).
+
+---
+
 ## Analytics Module (`analytics.ipynb`)
 
 This notebook is the **first module** of the recommender system project.

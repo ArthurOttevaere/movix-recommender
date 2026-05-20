@@ -20,11 +20,18 @@ const api = {
       else localStorage.setItem('user_token', token);
       return { user_token: token, status: 'ok' };
     }
-    return fetch(`${CONFIG.API_BASE_URL}/onboarding/submit`, {
+    const res = await fetch(`${CONFIG.API_BASE_URL}/onboarding/submit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ratings })
-    }).then(r => r.json());
+    });
+    if (!res.ok) throw new Error(`Onboarding failed: ${res.status}`);
+    const data = await res.json();
+    if (data.user_token) {
+      if (typeof pstore !== 'undefined') pstore.set('user_token', data.user_token);
+      else localStorage.setItem('user_token', data.user_token);
+    }
+    return data;
   },
 
   async getRecommendations(userToken) {
