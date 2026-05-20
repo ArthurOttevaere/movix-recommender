@@ -24,9 +24,9 @@ class EvalConfig:
     ]
 
     # Evaluation metrics. Only rmse is activated here for computational reasons, but you can activate more metrics if you want.
-    split_metrics = ["rmse"] # = "mae"
-    loo_metrics = [] # hit_rate
-    full_metrics = [] # novelty
+    split_metrics = ["rmse","mae"] # = "mae"
+    loo_metrics = ["hit_rate"] # hit_rate
+    full_metrics = ["novelty"] # novelty
 
     # Split parameters
     test_size = 0.25  # -- configure the test_size (from 0 to 1) --
