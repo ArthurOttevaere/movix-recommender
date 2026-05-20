@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Movix Player</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Bebas+Neue&display=swap"
+    rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body,
+    html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Inter', sans-serif;
+      color: white;
+    }
+
+    .player-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, rgba(229, 9, 20, 0.15) 0%, #000 70%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      /* Shift everything slightly above centre */
+      padding-bottom: 20vh;
+      text-align: center;
+      padding-left: 20px;
+      padding-right: 20px;
+      animation: fadeIn 1.5s ease-out forwards;
+    }
+
+    @keyframes fadeIn {
+      0% {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .logo {
+      width: 200px;
+      height: auto;
+      margin-bottom: 20px;
+      animation: pulseLogo 3s infinite alternate;
+      cursor: default;
+    }
+
+    @keyframes pulseLogo {
+      0% {
+        filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));
+      }
+
+      100% {
+        filter: drop-shadow(0 0 40px rgba(229, 9, 20, 0.8)) drop-shadow(0 0 10px rgba(229, 9, 20, 0.5));
+      }
+    }
+
+    .warning-box {
+      max-width: 580px;
+      background: rgba(20, 20, 20, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 40px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      animation: slideUp 1s cubic-bezier(0.2, 0.8, 0.2, 1) 0.3s both;
+    }
+
+    @keyframes slideUp {
+      0% {
+        opacity: 0;
+        transform: translateY(40px);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .warning-icon {
+      color: var(--accent);
+      width: 56px;
+      height: 56px;
+      margin-bottom: 24px;
+    }
+
+    .warning-title {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      letter-spacing: -0.5px;
+    }
+
+    .warning-text {
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+    }
+
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: white;
+      color: black;
+      padding: 12px 28px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 16px;
+      text-decoration: none;
+      transition: background 0.3s ease, color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+    }
+
+    .btn-back:hover {
+      background: #e5091a;
+      color: white;
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(229, 9, 20, 0.5);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="player-container">
+    <img src="img/logo.svg" alt="Movix Logo" class="logo">
+    <div class="warning-box">
+      <i data-lucide="triangle-alert" class="warning-icon"></i>
+      <h1 class="warning-title">Oops! Did you bring popcorn?</h1>
+      <p class="warning-text">
+        This site is purely dedicated to movie recommendations and taste profiling, not to viewing them.
+        <br><br>
+        To watch this content, it is advised to use legal streaming platforms like Netflix (for which any resemblance to
+        our site is, of course, purely coincidental 😉).
+      </p>
+      <a href="javascript:history.back()" class="btn-back">
+        <i data-lucide="arrow-left"></i> Go Back
+      </a>
+    </div>
+  </div>
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Movix — Recommandations personnalisées</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Bebas+Neue&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/navbar.css">
+  <link rel="stylesheet" href="css/hero.css">
+  <link rel="stylesheet" href="css/carousel.css">
+  <link rel="stylesheet" href="css/modal.css">
+  <link rel="stylesheet" href="css/views.css">
+  <link rel="stylesheet" href="css/chatbot.css">
+</head>
+
+<body>
+
+  <!-- ── Navbar ─────────────────────────────────────────────────────────────── -->
+  <nav class="navbar" id="navbar">
+    <div class="navbar-left">
+      <a href="#" class="navbar-logo" data-view="home" aria-label="Movix">
+        <img src="img/logo.svg" alt="Movix" class="navbar-logo-img">
+      </a>
+      <ul class="navbar-links">
+        <li><a href="#" data-view="home" class="active">Home</a></li>
+        <li><a href="#" data-view="discover">Discover</a></li>
+        <li><a href="#" data-view="saga">Saga</a></li>
+        <li><a href="#" data-view="surprise">Surprise Me</a></li>
+        <li>
+          <a href="#" data-view="watchlist">
+            My List
+            <span class="watchlist-nav-badge" id="watchlist-nav-badge" style="display:none"></span>
+          </a>
+        </li>
+      </ul>
+    </div>
+    <div class="navbar-right">
+      <button class="navbar-search-btn" id="navbar-search-btn" aria-label="Rechercher (/)">
+        <i data-lucide="search"></i>
+      </button>
+      <a href="profile.html" class="navbar-avatar" id="navbar-avatar" title="Mon profil">C</a>
+    </div>
+  </nav>
+
+  <!-- ── Toast container ────────────────────────────────────────────────────── -->
+  <div id="toast-container"></div>
+
+  <!-- ── Search overlay ────────────────────────────────────────────────────── -->
+  <div class="search-overlay" id="search-overlay" role="dialog" aria-label="Search for a film">
+    <button class="search-close-btn" id="search-close-btn" aria-label="Close search">
+      <i data-lucide="x"></i>
+    </button>
+    <div class="search-input-wrapper">
+      <i data-lucide="search"></i>
+      <input type="text" class="search-input" id="search-input" placeholder="Titles, genres, actors…" autocomplete="off"
+        spellcheck="false">
+    </div>
+    <div class="search-results" id="search-results"></div>
+    <p class="search-hint">
+      Press <kbd>/</kbd> to open · <kbd>Esc</kbd> to close
+    </p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       VIEW : ACCUEIL
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="view-section active" id="view-home">
+
+    <!-- Hero Section -->
+    <section class="hero" id="hero">
+      <div class="hero-content" id="hero-content">
+        <div class="hero-badge" id="hero-badge"></div>
+        <h1 class="hero-title" id="hero-title">Loading…</h1>
+        <div class="hero-meta" id="hero-meta"></div>
+        <p class="hero-overview" id="hero-overview"></p>
+        <div class="hero-actions">
+          <button class="btn-primary" id="hero-play-btn">
+            <i data-lucide="play"></i> Play
+          </button>
+          <button class="btn-secondary" id="hero-info-btn">
+            <i data-lucide="info"></i> See More
+          </button>
+        </div>
+      </div>
+      <div class="hero-dots" id="hero-dots"></div>
+    </section>
+
+    <!-- Carousels de recommandations -->
+    <main class="carousels-container" id="carousels-container">
+      <div class="loading-spinner">
+        <div class="spinner"></div>
+        Loading recommendations…
+      </div>
+    </main>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       VIEW : DÉCOUVRIR
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="view-section" id="view-discover">
+    <div class="discover-page">
+
+      <div class="discover-header">
+        <h1 class="discover-title">Discover</h1>
+        <p class="discover-subtitle">Explore by genre or pick from your tailored selection</p>
+      </div>
+
+      <!-- Genre dropdown (clean streaming-site control) -->
+      <div class="discover-controls">
+        <div class="genre-dropdown" id="genre-dropdown">
+          <button class="genre-dropdown-trigger" type="button" id="genre-dropdown-trigger" aria-haspopup="listbox"
+            aria-expanded="false">
+            <span class="genre-dropdown-label" id="genre-dropdown-label">For you</span>
+            <svg class="genre-dropdown-chev" width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+          <ul class="genre-dropdown-panel" id="genre-dropdown-panel" role="listbox"></ul>
+        </div>
+      </div>
+
+      <!-- Genre carousels -->
+      <div class="genre-carousels-container" id="genre-carousels-container">
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+          Loading…
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       VIEW : SAGA
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="view-section" id="view-saga">
+    <div class="saga-page">
+
+      <div class="saga-header">
+        <h1 class="discover-title">Sagas</h1>
+        <p class="discover-subtitle">Pick a franchise — explore every film in its universe</p>
+      </div>
+
+      <div class="saga-grid" id="saga-grid">
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+          Loading sagas…
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Saga collection modal (lists the films of the chosen saga) -->
+  <div class="modal-overlay" id="saga-modal" role="dialog" aria-modal="true" aria-labelledby="saga-modal-title">
+    <div class="modal-container" id="saga-modal-container">
+      <div class="modal-backdrop">
+        <img id="saga-modal-backdrop" src="img/placeholder_backdrop.svg" alt="">
+        <div class="modal-backdrop-gradient"></div>
+        <button class="modal-close" id="saga-modal-close" aria-label="Close">✕</button>
+        <div class="modal-hero-info">
+          <h2 class="modal-title" id="saga-modal-title"></h2>
+          <p class="modal-quick-meta" id="saga-modal-overview" style="max-width:680px;line-height:1.5"></p>
+        </div>
+      </div>
+      <div class="modal-body" style="display:block">
+        <h3 class="modal-more-title" style="margin-bottom:16px">All films in this saga</h3>
+        <div class="modal-more-grid" id="saga-modal-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       VIEW : SURPRISE ME
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="view-section" id="view-surprise">
+    <div class="surprise-page">
+      <div class="surprise-hero">
+        <h1 class="discover-title">Surprise Me</h1>
+        <p class="discover-subtitle">Can't decide? Let Movix pick one for you.</p>
+        <button class="btn-primary surprise-btn" id="surprise-btn">
+          <i data-lucide="dices"></i> Roll the dice
+        </button>
+      </div>
+      <div class="surprise-result" id="surprise-result"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       VIEW : MA LISTE
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="view-section" id="view-watchlist">
+    <div class="watchlist-page-view">
+
+      <div class="watchlist-view-header">
+        <h1>My List</h1>
+        <span id="watchlist-count-header" class="watchlist-count-badge"></span>
+      </div>
+
+      <div class="watchlist-full-grid" id="watchlist-full-grid">
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       MODAL film (partagée entre toutes les vues)
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="movie-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-container" id="modal-container">
+
+      <div class="modal-backdrop">
+        <img id="modal-backdrop-img" src="img/placeholder_backdrop.svg" alt="">
+        <div class="modal-backdrop-gradient"></div>
+        <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+        <div class="modal-hero-info">
+          <h2 class="modal-title" id="modal-title"></h2>
+          <div class="modal-quick-meta" id="modal-quick-meta"></div>
+          <div class="modal-actions">
+            <button class="btn-primary" id="modal-play-btn">
+              <i data-lucide="play"></i> Play
+            </button>
+            <button class="btn-watchlist-modal" id="modal-watchlist-btn">+ My List</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <div class="modal-left">
+          <p class="modal-overview" id="modal-overview"></p>
+          <div class="modal-explanation" id="modal-explanation">
+            <h4>Why This Film?</h4>
+            <div class="explanation-features" id="explanation-features"></div>
+            <p class="explanation-summary" id="explanation-summary"></p>
+          </div>
+        </div>
+        <div class="modal-right">
+          <div id="modal-metadata"></div>
+          <div class="rating-section">
+            <p class="meta-label">Your Rating:</p>
+            <div class="star-rating" id="modal-star-rating">
+              <span class="star" data-value="1">★</span>
+              <span class="star" data-value="2">★</span>
+              <span class="star" data-value="3">★</span>
+              <span class="star" data-value="4">★</span>
+              <span class="star" data-value="5">★</span>
+            </div>
+            <p class="rating-label" id="rating-label"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Next in Saga -->
+      <div class="modal-more-section" id="modal-saga-section" style="display:none">
+        <h3 class="modal-more-title" id="modal-saga-title">Next in Saga</h3>
+        <div class="modal-more-grid" id="modal-saga-grid"></div>
+      </div>
+
+      <!-- More Like This -->
+      <div class="modal-more-section" id="modal-more-section" style="display:none">
+        <h3 class="modal-more-title">More Like This</h3>
+        <div class="modal-more-grid" id="modal-more-grid"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       Chatbot — floating action button + slide-in panel
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <button id="chatbot-fab" class="chatbot-fab" aria-label="Ask CineBot for a film">
+    <span class="chatbot-fab-text">Need a movie?</span>
+    <i data-lucide="message-circle"></i>
+  </button>
+
+  <aside class="chatbot-panel" id="chatbot-panel" aria-label="Film assistant">
+    <div class="chatbot-resize-n" id="chatbot-resize-n"></div>
+    <div class="chatbot-resize-w" id="chatbot-resize-w"></div>
+    <header class="chatbot-header">
+      <div class="chatbot-header-info">
+        <span class="chatbot-avatar">🎬</span>
+        <div>
+          <div class="chatbot-title">CineBot</div>
+          <div class="chatbot-sub">Tell me what you're in the mood for</div>
+        </div>
+      </div>
+      <div class="chatbot-header-actions">
+        <button class="chatbot-close" id="chatbot-close" aria-label="Close">✕</button>
+      </div>
+    </header>
+    <div class="chatbot-messages" id="chatbot-messages"></div>
+    <div class="chatbot-input-container">
+      <div class="chatbot-mood-tray" id="chatbot-mood-tray" style="display: none;">
+        <button type="button" class="mood-chip" data-mood="🍿 Chill">🍿 Chill</button>
+        <button type="button" class="mood-chip" data-mood="😂 Funny">😂 Funny</button>
+        <button type="button" class="mood-chip" data-mood="😱 Scary">😱 Scary</button>
+        <button type="button" class="mood-chip" data-mood="🤯 Mind-bending">🤯 Mind-bending</button>
+        <button type="button" class="mood-chip" data-mood="🕵️ Mystery">🕵️ Mystery</button>
+        <button type="button" class="mood-chip" data-mood="⚔️ Action">⚔️ Action</button>
+      </div>
+      <form class="chatbot-input-wrap" id="chatbot-form">
+        <button type="button" class="chatbot-plus-btn" id="chatbot-plus-btn" aria-label="Moods">
+          <i data-lucide="plus"></i>
+        </button>
+        <input type="text" class="chatbot-input" id="chatbot-input" placeholder="Type a mood, actor or movie..."
+          autocomplete="off">
+        <button type="submit" class="chatbot-send" aria-label="Send">
+          <i data-lucide="send"></i>
+        </button>
+      </form>
+    </div>
+  </aside>
+
+  <!-- ── Scripts (ordre important) ──────────────────────────────────────────── -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="config.js"></script>
+  <script src="js/profiles.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/tmdb.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/toast.js"></script>
+  <script src="js/ratings.js"></script>
+  <script src="js/watchlist.js"></script>
+  <script src="js/carousel.js"></script>
+  <script src="js/modal.js"></script>
+  <script src="js/saga.js"></script>
+  <script src="js/gemini.js"></script>
+  <script src="js/chatbot.js"></script>
+  <script src="js/navigation.js"></script>
+  <script src="js/home.js"></script>
+  <script>
+    // Reflect the active profile's avatar in the navbar
+    (function applyProfileAvatar() {
+      if (typeof profiles === 'undefined') return;
+      const active = profiles.active();
+      if (!active) return;
+      const nav = document.getElementById('navbar-avatar');
+      if (!nav) return;
+      const url = profiles.avatarSvg(active.avatar, active.name);
+      nav.textContent = '';
+      nav.style.background = 'transparent';
+      nav.style.overflow = 'hidden';
+      nav.title = active.name;
+      nav.innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;display:block;object-fit:cover">`;
+    })();
+    lucide.createIcons();
+  </script>
+</body>
+
+</html>

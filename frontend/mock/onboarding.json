@@ -1,0 +1,24 @@
+{
+  "movies": [
+    { "movie_id": 550,    "tmdb_id": 550,    "title": "Fight Club",                       "year": 1999, "genres": ["Drama", "Thriller"] },
+    { "movie_id": 27205,  "tmdb_id": 27205,  "title": "Inception",                        "year": 2010, "genres": ["Action", "Sci-Fi"] },
+    { "movie_id": 238,    "tmdb_id": 238,    "title": "The Godfather",                    "year": 1972, "genres": ["Crime", "Drama"] },
+    { "movie_id": 278,    "tmdb_id": 278,    "title": "The Shawshank Redemption",         "year": 1994, "genres": ["Drama"] },
+    { "movie_id": 13,     "tmdb_id": 13,     "title": "Forrest Gump",                     "year": 1994, "genres": ["Comedy", "Drama"] },
+    { "movie_id": 680,    "tmdb_id": 680,    "title": "Pulp Fiction",                     "year": 1994, "genres": ["Crime", "Thriller"] },
+    { "movie_id": 157336, "tmdb_id": 157336, "title": "Interstellar",                     "year": 2014, "genres": ["Sci-Fi", "Drama"] },
+    { "movie_id": 129,    "tmdb_id": 129,    "title": "Spirited Away",                    "year": 2001, "genres": ["Animation", "Fantasy"] },
+    { "movie_id": 11,     "tmdb_id": 11,     "title": "Star Wars",                        "year": 1977, "genres": ["Action", "Adventure", "Sci-Fi"] },
+    { "movie_id": 244786, "tmdb_id": 244786, "title": "Whiplash",                         "year": 2014, "genres": ["Drama", "Music"] },
+    { "movie_id": 372058, "tmdb_id": 372058, "title": "Your Name",                        "year": 2016, "genres": ["Animation", "Romance"] },
+    { "movie_id": 637,    "tmdb_id": 637,    "title": "Life Is Beautiful",                "year": 1997, "genres": ["Comedy", "Drama"] },
+    { "movie_id": 539,    "tmdb_id": 539,    "title": "Psycho",                           "year": 1960, "genres": ["Horror", "Thriller"] },
+    { "movie_id": 769,    "tmdb_id": 769,    "title": "GoodFellas",                       "year": 1990, "genres": ["Crime", "Drama"] },
+    { "movie_id": 508442, "tmdb_id": 508442, "title": "Soul",                             "year": 2020, "genres": ["Animation", "Comedy"] },
+    { "movie_id": 324857, "tmdb_id": 324857, "title": "Spider-Man: Into the Spider-Verse","year": 2018, "genres": ["Animation", "Action"] },
+    { "movie_id": 289,    "tmdb_id": 289,    "title": "Casablanca",                       "year": 1942, "genres": ["Drama", "Romance"] },
+    { "movie_id": 598,    "tmdb_id": 598,    "title": "City of God",                      "year": 2002, "genres": ["Crime", "Drama"] },
+    { "movie_id": 429,    "tmdb_id": 429,    "title": "The Good, the Bad and the Ugly",  "year": 1966, "genres": ["Western"] },
+    { "movie_id": 346364, "tmdb_id": 346364, "title": "It",                               "year": 2017, "genres": ["Horror"] }
+  ]
+}
