@@ -26,30 +26,23 @@ class CarouselSpec:
 CAROUSELS: list[CarouselSpec] = [
     CarouselSpec(
         id="pour_toi",
-        label="Pour Toi",
+        label="For You",
         model="ensemble",
-        explanation="Notre meilleur mix rien que pour vous",
+        explanation="Our best blend, tailored to your taste",
         builder="_build_top",
     ),
     CarouselSpec(
         id="discovery",
-        label="Découverte",
+        label="Step Outside Your Comfort Zone",
         model="ensemble",
-        explanation="Films à fort potentiel hors de votre zone de confort",
+        explanation="High-potential picks you wouldn't have chosen yourself",
         builder="_build_discovery",
     ),
     CarouselSpec(
-        id="trending",
-        label="Tendances",
-        model="trending",
-        explanation="Ce que tout le monde regarde",
-        builder="_build_trending",
-    ),
-    CarouselSpec(
         id="genre_drama",
-        label="Top Drame",
+        label="Top Drama",
         model="genre:Drama",
-        explanation="Les meilleurs films dramatiques",
+        explanation="The highest-rated dramatic films",
         builder="_build_genre",
         genres=("Drama",),
     ),
@@ -57,31 +50,31 @@ CAROUSELS: list[CarouselSpec] = [
         id="genre_thriller",
         label="Thriller & Suspense",
         model="genre:Thriller",
-        explanation="Suspense et tension à couper le souffle",
+        explanation="Edge-of-your-seat suspense",
         builder="_build_genre",
         genres=("Thriller",),
     ),
     CarouselSpec(
         id="genre_scifi",
-        label="Science-Fiction",
+        label="Science Fiction",
         model="genre:Sci-Fi",
-        explanation="Voyages dans d'autres mondes, d'autres temps",
+        explanation="Other worlds, other times, other minds",
         builder="_build_genre",
         genres=("Sci-Fi",),
     ),
     CarouselSpec(
         id="genre_animation",
-        label="Animation",
+        label="Animation & Fantasy",
         model="genre:Animation",
-        explanation="Animation et fantastique",
+        explanation="Animation and fantasy storytelling",
         builder="_build_genre",
         genres=("Animation",),
     ),
     CarouselSpec(
         id="genre_crime",
-        label="Crime & Mystère",
+        label="Crime & Mystery",
         model="genre:Crime",
-        explanation="Enquêtes, mafias et histoires de détectives",
+        explanation="Investigations, mafias and detective stories",
         builder="_build_genre",
         genres=("Crime",),
     ),
@@ -164,16 +157,6 @@ class Orchestrator:
         item_features = {mid: set(self.catalog.get(mid).genres) for mid, _ in pool if self.catalog.get(mid)}
         reranked = mmr_rerank(pool, item_features, self.settings.top_n_discovery, self.settings.mmr_lambda)
         return self._enrich_pairs(reranked, user)
-
-    def _build_trending(self, spec: CarouselSpec, user: UserState, scored: dict[int, float]) -> list[MovieOut]:
-        seen = set(user.ratings.keys())
-        # Pull a few extra in case some overlap user.ratings.
-        pairs = [
-            (mid, score)
-            for mid, score in self.popularity.top(self.settings.top_n_trending + 20, min_count=100)
-            if mid not in seen
-        ][: self.settings.top_n_trending]
-        return self._enrich_pairs(pairs, user, ranked=True)
 
     def _build_genre(self, spec: CarouselSpec, user: UserState, scored: dict[int, float]) -> list[MovieOut]:
         assert spec.genres

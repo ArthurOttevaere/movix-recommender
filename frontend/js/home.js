@@ -297,24 +297,13 @@ async function renderHomeCarousels(carousels, allMovies) {
 
   const cwCarousel = buildContinueWatching(allMovies);
 
-  // Promote the trending/top-10 carousel so it appears early on the page
-  const orderedRecs = [...carousels].sort((a, b) => {
-    const aTop = a.model === 'trending' ? -1 : 0;
-    const bTop = b.model === 'trending' ? -1 : 0;
-    return aTop - bTop;
-  });
-  // Give a clearer "Top 10" label to the trending carousel so users recognize it,
-  // and flag it as the ONLY carousel allowed to display the giant rank badge.
-  orderedRecs.forEach(c => {
-    if (c.model === 'trending') {
-      c.label = 'Top 8 Today';
-      c.showRank = true;
-      // Ensure at most 10 movies are shown in this carousel
-      if (c.movies && c.movies.length > 10) c.movies = c.movies.slice(0, 10);
-    }
-  });
+  const allCarousels = cwCarousel ? [cwCarousel, ...carousels] : carousels;
 
-  const allCarousels = cwCarousel ? [cwCarousel, ...orderedRecs] : orderedRecs;
+  // ── Top 8 Today (TMDB-driven, sits at the very top) ────────────────────────
+  const trendingSection = createCarouselSection({
+    id: 'tmdb-trending', label: 'Top 8 Today', model: 'trending', showRank: true
+  });
+  container.appendChild(trendingSection);
 
   for (const c of allCarousels) {
     container.appendChild(createCarouselSection(c));
@@ -336,8 +325,21 @@ async function renderHomeCarousels(carousels, allMovies) {
   for (const c of allCarousels) await populateCarousel(c);
 
   // ── Populate live carousels (parallel, no await blocking) ──────────────────
+  loadTrendingTodayCarousel();
   loadTopRatedCarousel();
   loadHiddenGemsCarousel();
+}
+
+async function loadTrendingTodayCarousel() {
+  try {
+    const results = await TMDB.trending('day');
+    const movies = results.slice(0, 8).map(r => TMDB.parseLite(r));
+    populateCarouselWithPosters({ id: 'tmdb-trending', movies, showRank: true });
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  } catch (e) {
+    const track = document.getElementById('track-tmdb-trending');
+    if (track) track.innerHTML = '<p class="empty-state" style="padding:20px">Could not load.</p>';
+  }
 }
 
 async function loadTopRatedCarousel() {

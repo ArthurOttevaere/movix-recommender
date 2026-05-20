@@ -67,10 +67,8 @@ def test_recommendations_shape(client):
         for m in c["movies"]:
             assert required_movie_keys <= m.keys(), f"missing keys in {c['id']}: {required_movie_keys - m.keys()}"
 
-    # Trending carousel should expose `rank`
-    trending = next((c for c in carousels if c["model"] == "trending"), None)
-    assert trending is not None
-    assert all(m.get("rank") for m in trending["movies"])
+    # The trending carousel is served by the frontend (TMDB), not the backend.
+    assert not any(c["model"] == "trending" for c in carousels)
 
     # tmdb_id coverage on recommended movies
     all_movies = [m for c in carousels for m in c["movies"]]
