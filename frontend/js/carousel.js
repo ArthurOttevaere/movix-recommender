@@ -75,8 +75,8 @@ function createMovieCard(movie, opts = {}) {
   if (!badgeLabel && parseInt(movie.year) >= now.getFullYear() - 1) {
     badgeLabel = 'Recently added';
   }
-  // The Top-10 rank badge only appears in carousels explicitly flagged as Top 10.
-  const isTopRanked = opts.showRank && movie.rank != null && movie.rank <= 10;
+  // The rank badge only appears in carousels explicitly flagged as showRank.
+  const isTopRanked = opts.showRank && movie.rank != null && movie.rank <= 20;
   const hasProgress = movie.progress != null;
 
   if (isTopRanked) card.classList.add('is-top10');

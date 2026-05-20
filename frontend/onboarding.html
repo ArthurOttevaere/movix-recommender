@@ -177,7 +177,12 @@
       }));
 
       try {
-        await api.submitOnboarding(ratings);
+        const result = await api.submitOnboarding(ratings);
+        if (!result || !result.user_token) {
+          throw new Error('Réponse serveur invalide : ' + JSON.stringify(result));
+        }
+        // Stocker le token ici (défensif — aussi fait dans api.js)
+        pstore.set('user_token', result.user_token);
         const stored = {};
         ratings.forEach(r => { stored[r.movie_id] = r.rating; });
         pstore.set('ratings', JSON.stringify(stored));
@@ -191,7 +196,7 @@
         window.location.href = 'index.html';
       } catch (err) {
         console.error('Onboarding submit failed:', err);
-        alert('Something went wrong. Please try again.');
+        alert('Something went wrong: ' + err.message);
       }
     });
 
