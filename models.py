@@ -98,6 +98,11 @@ class ModelBaseline4(SVD):
     def __init__(self, random_state=1):
         SVD.__init__(self, n_factors=100, random_state=random_state)
 
+# Latent Factor — hyperparamètres optimisés par GridSearchCV (latent_factor.ipynb)
+class LatentFactor(SVD):
+    def __init__(self, random_state=1):
+        SVD.__init__(self, n_factors=150, n_epochs=30, lr_all=0.01, reg_all=0.05, random_state=random_state)
+
 # KNN with means, using msd baseline similarity measure and user-based collaborative filtering
 class ModelBaseline5(KNNWithMeans):
     def __init__(self, random_state=1):

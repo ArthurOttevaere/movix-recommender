@@ -19,14 +19,16 @@ class EvalConfig:
         ("LinearRegression_Intercept_True", ContentBased, {"features_method": "title_length", "regressor_method": "linear_regression_true"}),
         
         ("ContentBased_ridge_cv", ContentBased, {"features_method": "all_content_tmdb_tags2000", "regressor_method": "ridge_cv"}), # best so far
-        ("ContentBased_ridge", ContentBased, {"features_method": "all_content_tmdb_tags2000", "regressor_method": "ridge"}) 
+        ("ContentBased_ridge", ContentBased, {"features_method": "all_content_tmdb_tags2000", "regressor_method": "ridge"}),
+
+        ("LatentFactor", LatentFactor, {}),
 
     ]
 
     # Evaluation metrics. Only rmse is activated here for computational reasons, but you can activate more metrics if you want.
-    split_metrics = ["rmse","mae"] # = "mae"
-    loo_metrics = ["hit_rate"] # hit_rate
-    full_metrics = ["novelty"] # novelty
+    split_metrics = ["rmse", "mae"]
+    loo_metrics = ["hit_rate", "ndcg"]
+    full_metrics = ["novelty", "miuf", "ild"]
 
     # Split parameters
     test_size = 0.25  # -- configure the test_size (from 0 to 1) --
