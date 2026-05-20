@@ -1,6 +1,8 @@
-// Public defaults — DO NOT put secrets here (this file is committed to git).
-// Put real API keys in `config.local.js` (gitignored). It's loaded after
-// this file and overrides any value defined below.
+// Public defaults — committed to git. Leave all keys empty here.
+// To add your real API keys:
+//   1. Copy `config.local.js.example` → `config.local.js`
+//   2. Fill in your keys in `config.local.js`
+// `config.local.js` is gitignored and will never be committed.
 const CONFIG = {
   TMDB_API_KEY: '',
   TMDB_BASE_URL: 'https://api.themoviedb.org/3',
