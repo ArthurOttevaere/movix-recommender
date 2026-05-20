@@ -5,7 +5,7 @@
 // Key: get a free API key at https://aistudio.google.com/apikey
 // Set CONFIG.GEMINI_API_KEY in config.js — leave empty to use keyword fallback.
 
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const TMDB_GENRE_IDS = {

@@ -313,7 +313,7 @@ async function renderHomeCarousels(carousels, allMovies) {
 
   // ── Add live TMDB carousels: Top Rated + Hidden Gems ───────────────────────
   const topRatedSection = createCarouselSection({
-    id: 'tmdb-top-rated', label: 'Top Ranked All Time', model: 'top_rated', showRank: true
+    id: 'tmdb-top-rated', label: 'Top Ranked All Time', model: 'top_rated'
   });
   container.appendChild(topRatedSection);
 
@@ -349,7 +349,7 @@ async function loadTopRatedCarousel() {
   try {
     const results = await TMDB.topRated(1);
     const movies = results.slice(0, 20).map(r => TMDB.parseLite(r));
-    populateCarouselWithPosters({ id: 'tmdb-top-rated', movies, showRank: true });
+    populateCarouselWithPosters({ id: 'tmdb-top-rated', movies });
     if (typeof lucide !== 'undefined') lucide.createIcons();
   } catch (e) {
     const track = document.getElementById('track-tmdb-top-rated');
@@ -400,7 +400,7 @@ async function _loadDiscoverTopRated() {
   try {
     const results = await TMDB.topRated(1);
     const movies = results.slice(0, 20).map(r => TMDB.parseLite(r));
-    populateCarouselWithPosters({ id: 'disc-foryou-top', movies, showRank: true });
+    populateCarouselWithPosters({ id: 'disc-foryou-top', movies });
     if (typeof lucide !== 'undefined') lucide.createIcons();
   } catch (e) {
     const track = document.getElementById('track-disc-foryou-top');
@@ -583,7 +583,7 @@ function renderForYouCarousels(container) {
     movies: allMoviesPool.slice(0, 20)
   };
   // 2. Top rated (live TMDB)
-  const topRatedSection = createCarouselSection({ id: 'disc-foryou-top', label: 'Top Rated of All Time', model: 'top_rated', showRank: true });
+  const topRatedSection = createCarouselSection({ id: 'disc-foryou-top', label: 'Top Rated of All Time', model: 'top_rated' });
   // 3. Hidden gems (live TMDB)
   const gemsSection = createCarouselSection({ id: 'disc-foryou-gems', label: 'Hidden Gems for You', model: 'hidden_gems' });
 
