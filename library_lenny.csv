@@ -1,0 +1,201 @@
+movie_id,title,genres,n_ratings,n_watched,wishlist,recent,top10
+356,Forrest Gump (1994),Comedy|Drama|Romance|War,837,0,1,0,0
+296,Pulp Fiction (1994),Comedy|Crime|Drama|Thriller,801,0,1,0,0
+260,Star Wars: Episode IV - A New Hope (1977),Action|Adventure|Sci-Fi,791,1,1,1,0
+"593,""Silence of the Lambs, The (1991)"",Crime|Horror|Thriller,779,0,0,0,0"
+1196,Star Wars: Episode V - The Empire Strikes Back (1980),Action|Adventure|Sci-Fi,769,1,1,1,0
+480,Jurassic Park (1993),Action|Adventure|Sci-Fi|Thriller,761,1,0,1,0
+1270,Back to the Future (1985),Adventure|Comedy|Sci-Fi,742,0,0,0,0
+1198,Raiders of the Lost Ark (Indiana Jones and the Raiders of the Lost Ark) (1981),Action|Adventure,734,0,0,0,0
+2858,American Beauty (1999),Drama|Romance,720,0,0,0,0
+"2762,""Sixth Sense, The (1999)"",Drama|Horror|Mystery,714,0,0,0,0"
+1210,Star Wars: Episode VI - Return of the Jedi (1983),Action|Adventure|Sci-Fi,706,1,1,1,0
+"4993,""Lord of the Rings: The Fellowship of the Ring, The (2001)"",Adventure|Fantasy,703,0,1,0,0"
+589,Terminator 2: Judgment Day (1991),Action|Sci-Fi,701,1,0,0,0
+780,Independence Day (a.k.a. ID4) (1996),Action|Adventure|Sci-Fi|Thriller,694,0,0,0,0
+2959,Fight Club (1999),Action|Crime|Drama|Thriller,677,0,1,0,0
+110,Braveheart (1995),Action|Drama|War,674,0,0,0,0
+"50,""Usual Suspects, The (1995)"",Crime|Mystery|Thriller,671,0,0,0,0"
+3578,Gladiator (2000),Action|Adventure|Drama,664,0,1,0,0
+1265,Groundhog Day (1993),Comedy|Fantasy|Romance,660,0,0,0,0
+2028,Saving Private Ryan (1998),Action|Drama|War,658,0,0,0,0
+608,Fargo (1996),Comedy|Crime|Drama|Thriller,658,0,0,0,0
+"5952,""Lord of the Rings: The Two Towers, The (2002)"",Adventure|Fantasy,657,0,1,0,0"
+4306,Shrek (2001),Adventure|Animation|Children|Comedy|Fantasy|Romance,642,4,0,1,0
+1291,Indiana Jones and the Last Crusade (1989),Action|Adventure,634,1,0,0,0
+"1240,""Terminator, The (1984)"",Action|Sci-Fi|Thriller,632,0,1,0,0"
+1721,Titanic (1997),Drama|Romance,624,0,0,0,0
+1097,E.T. the Extra-Terrestrial (1982),Children|Drama|Sci-Fi,622,1,0,0,0
+"7153,""Lord of the Rings: The Return of the King, The (2003)"",Action|Adventure|Drama|Fantasy,621,0,1,0,0"
+32,Twelve Monkeys (a.k.a. 12 Monkeys) (1995),Mystery|Sci-Fi|Thriller,619,0,0,0,0
+1136,Monty Python and the Holy Grail (1975),Adventure|Comedy|Fantasy,613,0,0,0,0
+1214,Alien (1979),Horror|Sci-Fi,611,0,0,0,0
+"1527,""Fifth Element, The (1997)"",Action|Adventure|Comedy|Sci-Fi,609,0,0,0,0"
+4226,Memento (2000),Mystery|Thriller,606,0,0,0,0
+2716,Ghostbusters (a.k.a. Ghost Busters) (1984),Action|Comedy|Sci-Fi,603,1,0,0,0
+2628,Star Wars: Episode I - The Phantom Menace (1999),Action|Adventure|Sci-Fi,591,1,0,1,0
+541,Blade Runner (1982),Action|Sci-Fi|Thriller,588,0,1,0,0
+377,Speed (1994),Action|Romance|Thriller,588,0,0,0,0
+6539,Pirates of the Caribbean: The Curse of the Black Pearl (2003),Action|Adventure|Comedy|Fantasy,585,5,0,0,0
+1704,Good Will Hunting (1997),Drama|Romance,584,0,0,0,0
+150,Apollo 13 (1995),Adventure|Drama|IMAX,580,0,0,0,0
+"457,""Fugitive, The (1993)"",Thriller,570,0,0,0,0"
+"1197,""Princess Bride, The (1987)"",Action|Adventure|Comedy|Fantasy|Romance,569,0,0,0,0"
+4963,Ocean's Eleven (2001),Crime|Thriller,569,0,0,0,0
+5445,Minority Report (2002),Action|Crime|Mystery|Sci-Fi|Thriller,564,0,0,0,0
+3793,X-Men (2000),Action|Adventure|Sci-Fi,564,3,0,0,0
+"364,""Lion King, The (1994)"",Adventure|Animation|Children|Drama|Musical|IMAX,558,1,0,0,0"
+5349,Spider-Man (2002),Action|Adventure|Sci-Fi|Thriller,550,5,0,1,1
+6377,Finding Nemo (2003),Adventure|Animation|Children|Comedy,546,0,0,0,0
+1200,Aliens (1986),Action|Adventure|Horror|Sci-Fi,541,0,0,0,0
+"367,""Mask, The (1994)"",Action|Comedy|Crime|Fantasy,540,0,0,0,0"
+588,Aladdin (1992),Adventure|Animation|Children|Comedy|Musical,536,1,0,0,0
+6874,Kill Bill: Vol. 1 (2003),Action|Crime|Thriller,532,0,0,0,0
+"1258,""Shining, The (1980)"",Horror,531,0,0,0,0"
+"4886,""Monsters, Inc. (2001)"",Adventure|Animation|Children|Comedy|Fantasy,526,0,0,0,0"
+"1732,""Big Lebowski, The (1998)"",Comedy|Crime,525,0,0,0,0"
+2997,Being John Malkovich (1999),Comedy|Drama|Fantasy,523,0,0,0,0
+2115,Indiana Jones and the Temple of Doom (1984),Action|Adventure|Fantasy,521,1,0,0,0
+293,Léon: The Professional (a.k.a. The Professional) (Léon) (1994),Action|Crime|Drama|Thriller,517,0,0,0,0
+924,2001: A Space Odyssey (1968),Adventure|Drama|Sci-Fi,517,1,1,0,0
+380,True Lies (1994),Action|Adventure|Comedy|Romance|Thriller,514,0,0,0,0
+"3147,""Green Mile, The (1999)"",Crime|Drama,511,0,0,0,0"
+1213,Goodfellas (1990),Crime|Drama,508,0,0,0,0
+"4995,""Beautiful Mind, A (2001)"",Drama|Romance,506,0,0,0,0"
+"5418,""Bourne Identity, The (2002)"",Action|Mystery|Thriller,504,0,0,0,0"
+"1221,""Godfather: Part II, The (1974)"",Crime|Drama,504,1,0,0,0"
+5989,Catch Me If You Can (2002),Crime|Drama,497,0,0,0,0
+1923,There's Something About Mary (1998),Comedy|Romance,497,0,0,0,0
+1961,Rain Man (1988),Drama,497,0,0,0,0
+2918,Ferris Bueller's Day Off (1986),Comedy,496,0,0,0,0
+597,Pretty Woman (1990),Comedy|Romance,495,1,0,0,0
+"3996,""Crouching Tiger, Hidden Dragon (Wo hu cang long) (2000)"",Action|Drama|Romance,495,0,0,0,0"
+"733,""Rock, The (1996)"",Action|Adventure|Thriller,490,0,0,0,0"
+4022,Cast Away (2000),Drama,484,0,0,0,0
+7438,Kill Bill: Vol. 2 (2004),Action|Drama|Thriller,482,0,0,0,0
+344,Ace Ventura: Pet Detective (1994),Comedy,482,0,0,0,0
+2683,Austin Powers: The Spy Who Shagged Me (1999),Action|Adventure|Comedy,478,0,0,0,0
+7361,Eternal Sunshine of the Spotless Mind (2004),Drama|Romance|Sci-Fi,477,0,0,0,0
+"1968,""Breakfast Club, The (1985)"",Comedy|Drama,476,0,0,0,0"
+1517,Austin Powers: International Man of Mystery (1997),Action|Adventure|Comedy,475,0,0,0,0
+"8961,""Incredibles, The (2004)"",Action|Adventure|Animation|Children|Comedy,475,0,0,0,0"
+33794,Batman Begins (2005),Action|Crime|IMAX,473,4,1,1,1
+1208,Apocalypse Now (1979),Action|Drama|War,470,0,0,0,0
+590,Dances with Wolves (1990),Adventure|Drama|Western,469,0,0,0,0
+4896,Harry Potter and the Sorcerer's Stone (a.k.a. Harry Potter and the Philosopher's Stone) (2001),Adventure|Children|Fantasy,467,5,1,1,1
+778,Trainspotting (1996),Comedy|Crime|Drama,465,0,0,0,0
+"919,""Wizard of Oz, The (1939)"",Adventure|Children|Fantasy|Musical,465,1,0,0,0"
+2797,Big (1988),Comedy|Drama|Fantasy|Romance,463,0,0,0,0
+4878,Donnie Darko (2001),Drama|Mystery|Sci-Fi|Thriller,460,0,0,0,0
+2012,Back to the Future Part III (1990),Adventure|Comedy|Sci-Fi|Western,456,0,0,0,0
+1917,Armageddon (1998),Action|Romance|Sci-Fi|Thriller,455,0,0,0,0
+1617,L.A. Confidential (1997),Crime|Film-Noir|Mystery|Thriller,454,0,0,0,0
+1073,Willy Wonka & the Chocolate Factory (1971),Children|Comedy|Fantasy|Musical,451,3,0,1,0
+"6365,""Matrix Reloaded, The (2003)"",Action|Adventure|Sci-Fi|Thriller|IMAX,448,0,0,0,0"
+3114,Toy Story 2 (1999),Adventure|Animation|Children|Comedy|Fantasy,445,2,0,1,0
+2174,Beetlejuice (1988),Comedy|Fantasy,445,0,0,0,0
+1784,As Good as It Gets (1997),Comedy|Drama|Romance,445,0,0,0,0
+231,Dumb & Dumber (Dumb and Dumber) (1994),Adventure|Comedy,444,0,0,0,0
+"4027,""O Brother, Where Art Thou? (2000)"",Adventure|Comedy|Crime,438,0,0,0,0"
+1653,Gattaca (1997),Drama|Sci-Fi|Thriller,436,0,0,0,0
+2987,Who Framed Roger Rabbit? (1988),Adventure|Animation|Children|Comedy|Crime|Fantasy|Mystery,435,0,0,0,0
+1584,Contact (1997),Drama|Sci-Fi,435,0,0,0,0
+3948,Meet the Parents (2000),Comedy,434,0,0,0,0
+736,Twister (1996),Action|Adventure|Romance|Thriller,433,0,0,0,0
+750,Dr. Strangelove or: How I Learned to Stop Worrying and Love the Bomb (1964),Comedy|War,433,0,0,0,0
+595,Beauty and the Beast (1991),Animation|Children|Fantasy|Musical|Romance|IMAX,431,0,0,0,0
+"1610,""Hunt for Red October, The (1990)"",Action|Adventure|Thriller,431,0,0,0,0"
+1573,Face/Off (1997),Action|Crime|Drama|Thriller,431,0,0,0,0
+2000,Lethal Weapon (1987),Action|Comedy|Crime|Drama,430,0,0,0,0
+5378,Star Wars: Episode II - Attack of the Clones (2002),Action|Adventure|Sci-Fi|IMAX,428,1,1,1,0
+111,Taxi Driver (1976),Crime|Drama|Thriller,426,0,0,0,0
+8636,Spider-Man 2 (2004),Action|Adventure|Sci-Fi|IMAX,426,3,1,1,1
+165,Die Hard: With a Vengeance (1995),Action|Crime|Thriller,425,0,0,0,0
+223,Clerks (1994),Comedy,424,0,0,0,0
+1259,Stand by Me (1986),Adventure|Drama,423,0,0,0,0
+"2355,""Bug's Life, A (1998)"",Adventure|Animation|Children|Comedy,422,0,0,0,0"
+1080,Monty Python's Life of Brian (1979),Comedy,421,0,0,0,0
+1393,Jerry Maguire (1996),Drama|Romance,421,0,0,0,0
+"1220,""Blues Brothers, The (1980)"",Action|Comedy|Musical,419,0,0,0,0"
+"2617,""Mummy, The (1999)"",Action|Adventure|Comedy|Fantasy|Horror|Thriller,418,0,0,0,0"
+153,Batman Forever (1995),Action|Adventure|Comedy|Crime,411,0,0,0,0
+32587,Sin City (2005),Action|Crime|Film-Noir|Mystery|Thriller,409,0,0,0,0
+1307,When Harry Met Sally... (1989),Comedy|Romance,406,0,0,0,0
+2396,Shakespeare in Love (1998),Comedy|Drama|Romance,404,0,0,0,0
+3994,Unbreakable (2000),Drama|Sci-Fi,402,0,0,0,0
+8360,Shrek 2 (2004),Adventure|Animation|Children|Comedy|Musical|Romance,399,2,0,0,0
+2791,Airplane! (1980),Comedy,399,0,0,0,0
+"1079,""Fish Called Wanda, A (1988)"",Comedy|Crime,398,0,0,0,0"
+39,Clueless (1995),Comedy|Romance,398,0,0,0,0
+1225,Amadeus (1984),Drama,393,0,0,0,0
+912,Casablanca (1942),Drama|Romance,393,0,0,0,0
+6333,X2: X-Men United (2003),Action|Adventure|Sci-Fi|Thriller,393,1,0,0,0
+"2710,""Blair Witch Project, The (1999)"",Drama|Horror|Thriller,391,0,0,0,0"
+1485,Liar Liar (1997),Comedy,391,0,0,0,0
+253,Interview with the Vampire: The Vampire Chronicles (1994),Drama|Horror,386,0,0,0,0
+3897,Almost Famous (2000),Drama,384,0,0,0,0
+1370,Die Hard 2 (1990),Action|Adventure|Thriller,384,0,0,0,0
+"2542,""Lock, Stock & Two Smoking Barrels (1998)"",Comedy|Crime|Thriller,384,0,0,0,0"
+316,Stargate (1994),Action|Adventure|Sci-Fi,383,0,0,0,0
+208,Waterworld (1995),Action|Adventure|Sci-Fi,383,0,0,0,0
+"551,""Nightmare Before Christmas, The (1993)"",Animation|Children|Fantasy|Musical,383,0,0,0,0"
+8368,Harry Potter and the Prisoner of Azkaban (2004),Adventure|Fantasy|IMAX,381,5,1,1,1
+1676,Starship Troopers (1997),Action|Sci-Fi,381,0,0,0,0
+3623,Mission: Impossible II (2000),Action|Adventure|Thriller,380,1,0,0,0
+33493,Star Wars: Episode III - Revenge of the Sith (2005),Action|Adventure|Sci-Fi,377,1,1,1,0
+357,Four Weddings and a Funeral (1994),Comedy|Romance,376,0,0,0,0
+10,GoldenEye (1995),Action|Adventure|Thriller,375,0,0,0,0
+"2700,""South Park: Bigger, Longer and Uncut (1999)"",Animation|Comedy|Musical,375,0,0,0,0"
+"1625,""Game, The (1997)"",Drama|Mystery|Thriller,373,0,0,0,0"
+1407,Scream (1996),Comedy|Horror|Mystery|Thriller,371,0,0,0,0
+79132,Inception (2010),Action|Crime|Drama|Mystery|Sci-Fi|Thriller|IMAX,368,0,0,0,0
+"1544,""Lost World: Jurassic Park, The (1997)"",Action|Adventure|Sci-Fi|Thriller,368,0,0,0,0"
+1380,Grease (1978),Comedy|Musical|Romance,367,0,0,0,0
+"2054,""Honey, I Shrunk the Kids (1989)"",Adventure|Children|Comedy|Fantasy|Sci-Fi,367,0,0,0,0"
+3949,Requiem for a Dream (2000),Drama,367,0,0,0,0
+"2194,""Untouchables, The (1987)"",Action|Crime|Drama,366,0,0,0,0"
+"6934,""Matrix Revolutions, The (2003)"",Action|Adventure|Sci-Fi|Thriller|IMAX,365,0,0,0,0"
+"8665,""Bourne Supremacy, The (2004)"",Action|Crime|Thriller,364,0,0,0,0"
+7147,Big Fish (2003),Drama|Fantasy|Romance,364,0,0,0,0
+"48516,""Departed, The (2006)"",Crime|Drama|Thriller,362,0,0,0,0"
+"2268,""Few Good Men, A (1992)"",Crime|Drama|Thriller,360,0,0,0,0"
+8874,Shaun of the Dead (2004),Comedy|Horror,359,0,0,0,0
+6,Heat (1995),Action|Crime|Thriller,358,0,0,0,0
+3481,High Fidelity (2000),Comedy|Drama|Romance,356,0,0,0,0
+59315,Iron Man (2008),Action|Adventure|Sci-Fi,356,3,1,0,0
+3751,Chicken Run (2000),Animation|Children|Comedy,355,0,0,0,0
+2692,Run Lola Run (Lola rennt) (1998),Action|Crime,353,0,0,0,0
+2985,RoboCop (1987),Action|Crime|Drama|Sci-Fi|Thriller,353,0,0,0,0
+1552,Con Air (1997),Action|Adventure|Thriller,352,0,0,0,0
+1090,Platoon (1986),Drama|War,351,0,0,0,0
+5218,Ice Age (2002),Adventure|Animation|Children|Comedy,351,0,0,0,0
+"48780,""Prestige, The (2006)"",Drama|Mystery|Sci-Fi|Thriller,350,0,0,0,0"
+19,Ace Ventura: When Nature Calls (1995),Comedy,350,0,0,0,0
+6502,28 Days Later (2002),Action|Horror|Sci-Fi,348,0,0,0,0
+904,Rear Window (1954),Mystery|Thriller,347,0,0,0,0
+3253,Wayne's World (1992),Comedy,346,0,0,0,0
+"1201,""Good, the Bad and the Ugly, The (Buono, il brutto, il cattivo, Il) (1966)"",Action|Adventure|Western,344,0,0,0,0"
+5502,Signs (2002),Horror|Sci-Fi|Thriller,344,0,0,0,0
+2324,Life Is Beautiful (La Vita è bella) (1997),Comedy|Drama|Romance|War,344,0,0,0,0
+"1247,""Graduate, The (1967)"",Comedy|Drama|Romance,342,0,0,0,0"
+72998,Avatar (2009),Action|Adventure|Sci-Fi|IMAX,341,2,0,1,0
+60069,WALL·E (2008),Adventure|Animation|Children|Romance|Sci-Fi,340,0,0,0,0
+4370,A.I. Artificial Intelligence (2001),Adventure|Drama|Sci-Fi,340,0,0,0,0
+21,Get Shorty (1995),Comedy|Crime|Thriller,338,0,0,0,0
+3081,Sleepy Hollow (1999),Fantasy|Horror|Mystery|Romance,337,0,0,0,0
+49272,Casino Royale (2006),Action|Adventure|Thriller,335,1,0,1,0
+"1997,""Exorcist, The (1973)"",Horror|Mystery,335,0,0,0,0"
+"48394,""Pan's Labyrinth (Laberinto del fauno, El) (2006)"",Drama|Fantasy|Thriller,334,0,0,0,0"
+3471,Close Encounters of the Third Kind (1977),Adventure|Drama|Sci-Fi,334,0,0,0,0
+45722,Pirates of the Caribbean: Dead Man's Chest (2006),Action|Adventure|Fantasy,334,3,0,0,0
+1377,Batman Returns (1992),Action|Crime,333,4,1,1,1
+6373,Bruce Almighty (2003),Comedy|Drama|Fantasy|Romance,331,0,0,0,0
+4034,Traffic (2000),Crime|Drama|Thriller,330,0,0,0,0
+1608,Air Force One (1997),Action|Thriller,330,0,0,0,0
+"4979,""Royal Tenenbaums, The (2001)"",Comedy|Drama,330,0,0,0,0"
+6863,School of Rock (2003),Comedy|Musical,329,0,0,0,0
+2353,Enemy of the State (1998),Action|Thriller,329,0,0,0,0
+"1641,""Full Monty, The (1997)"",Comedy|Drama,329,0,0,0,0"
+3033,Spaceballs (1987),Comedy|Sci-Fi,327,0,0,0,0
+2321,Pleasantville (1998),Comedy|Drama|Fantasy,326,0,0,0,0
+51662,300 (2007),Action|Fantasy|War|IMAX,325,0,0,0,0

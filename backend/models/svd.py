@@ -64,5 +64,43 @@ def recommend(user_ratings: dict, n: int = 20) -> list[tuple[int, float]]:
     if _svd_model is None:
         return []
 
-    # TODO : implémenter le folding-in (voir docstring du fichier)
-    return []
+    ts = _svd_model.trainset
+    mu = ts.global_mean
+
+    # 1. Convertir raw movie_ids → inner_ids (ignorer les films inconnus)
+    rated = []
+    for raw_iid, r in user_ratings.items():
+        try:
+            inner = ts.to_inner_iid(raw_iid)
+            rated.append((inner, r))
+        except ValueError:
+            pass
+
+    if not rated:
+        return []
+
+    inner_ids = [x[0] for x in rated]
+    ratings = np.array([x[1] for x in rated])
+
+    # 2. Récupérer les facteurs et biais des films notés
+    Q_rated = _svd_model.qi[inner_ids]       # (k_rated × n_factors)
+    b_rated = _svd_model.bi[inner_ids]       # (k_rated,)
+    residuals = ratings - mu - b_rated
+
+    # 3. Résoudre pour pu (folding-in ridge)
+    n_factors = Q_rated.shape[1]
+    A = Q_rated.T @ Q_rated + LAMBDA * np.eye(n_factors)
+    bv = Q_rated.T @ residuals
+    pu = np.linalg.solve(A, bv)             # (n_factors,)
+
+    # 4. Scorer tous les films non notés
+    rated_inner = set(inner_ids)
+    all_scores = mu + _svd_model.bi + _svd_model.qi @ pu  # (n_items,)
+    candidates = [
+        (int(ts.to_raw_iid(i)), float(np.clip(all_scores[i], 0.5, 5.0)))
+        for i in range(ts.n_items) if i not in rated_inner
+    ]
+
+    # 5. Trier et retourner top-n
+    candidates.sort(key=lambda x: -x[1])
+    return candidates[:n]
