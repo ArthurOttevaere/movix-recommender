@@ -22,7 +22,7 @@ Stratégie — similarité MSD à la volée :
          si support == 0 → sim = 0
          sinon : msd = mean((r_new - r_u)²) sur l'intersection
                  sim = 1 / (msd + 1)
-    3. Garder les K meilleurs voisins (K = 50 suggéré).
+    3. Garder les K meilleurs voisins (K = 40).
     4. Pour chaque film non noté j :
          pred = mean_new + Σ(sim_u * (r_uj - mean_u)) / Σ|sim_u|
     5. Clipper à [0.5, 5.0], trier décroissant, retourner top-n.
@@ -33,8 +33,20 @@ Stratégie — similarité MSD à la volée :
 Génération des artefacts (à ajouter dans ton notebook) :
     import pickle, numpy as np
     from scipy.sparse import csr_matrix, save_npz
+    from surprise import Dataset, Reader
+    from loaders import load_ratings
+    from constants import Constant as C
 
-    ts = userbased_algo.trainset
+    df = load_ratings()
+    reader = Reader(rating_scale=C.RATINGS_SCALE)
+    data = Dataset.load_from_df(df[[C.USER_ID_COL, C.ITEM_ID_COL, C.RATING_COL]], reader)
+    trainset = data.build_full_trainset()
+
+    # Paramètres alignés sur les constantes backend : K=40, min_k=5, min_support=5
+    ub_algo = UserBased_tuned(k=40, min_k=5, sim_options={'name': 'msd', 'min_support': 5})
+    ub_algo.fit(trainset)
+
+    ts = ub_algo.trainset
     rows, cols, vals = [], [], []
     for u in range(ts.n_users):
         for iid, r in ts.ur[u]:
@@ -46,7 +58,9 @@ Génération des artefacts (à ajouter dans ton notebook) :
     np.save("backend/artifacts/user_means.npy", means)
 
     with open("backend/artifacts/userbased_model.pkl", "wb") as f:
-        pickle.dump(userbased_algo, f)
+        pickle.dump(ub_algo, f)
+
+    print(f"Sauvegardé : {ts.n_users} users, {ts.n_items} items")
 """
 
 import pickle
@@ -56,9 +70,9 @@ import numpy as np
 from scipy.sparse import load_npz
 
 ARTIFACTS_DIR = Path(__file__).parent.parent / "artifacts"
-K_NEIGHBORS = 50          # nombre de voisins à considérer
+K_NEIGHBORS = 40          # nombre de voisins à considérer
 MIN_ITEM_SUPPORT = 3      # un film doit avoir été noté par ≥ N voisins pour être recommandé
-MIN_USER_SUPPORT = 2      # un voisin doit avoir noté ≥ N films en commun avec le nouvel utilisateur
+MIN_USER_SUPPORT = 5      # un voisin doit avoir noté ≥ N films en commun avec le nouvel utilisateur (= min_support)
 SIG_WEIGHTING_CAP = 20    # plafond pour la pondération par significance
 SHRINKAGE = 5.0           # régularisation : tire la prédiction vers new_mean quand peu de voisins soutiennent l'item
 
@@ -106,8 +120,13 @@ def recommend(user_ratings: dict, n: int = 20) -> list[tuple[int, float]]:
     # MSD pure (1/(msd+1)) pondérée par significance plafonnée pour rester
     # robuste : un voisin qui partage 1 seul film ne pèse pas autant qu'un voisin
     # qui en partage 5.
+    # Seuil adaptatif : ne pas exiger plus de films communs qu'il n'y en a en entrée.
+    # Avec 3-4 films, MIN_USER_SUPPORT=5 rendrait la condition impossible à satisfaire.
+    # On prend la moitié des films d'entrée, avec un plancher à 2 pour rester robuste.
+    effective_min_support = max(2, min(MIN_USER_SUPPORT, len(inner_ids) // 2))
+
     sims = np.zeros(ts.n_users)
-    valid = support >= MIN_USER_SUPPORT
+    valid = support >= effective_min_support
     if valid.any():
         diff_sq = (sub - new_ratings) ** 2          # (n_users, n_rated)
         diff_sq[~rated_mask] = 0.0                  # ignorer items non notés
