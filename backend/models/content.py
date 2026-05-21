@@ -32,6 +32,7 @@ Génération de l'artefact (à ajouter dans ton notebook) :
 
 import pickle
 from pathlib import Path
+from sklearn.linear_model import RidgeCV
 
 import numpy as np
 
@@ -51,8 +52,53 @@ def load() -> None:
 
 def recommend(user_ratings: dict, n: int = 20) -> list[tuple[int, float]]:
     """Retourne top-n (movie_id, raw_score) pour un nouvel utilisateur."""
-    if _content_features is None:
+
+    if _content_features is None or n <= 0:
         return []
 
-    # TODO : implémenter la logique RidgeCV (voir docstring du fichier)
-    return []
+    clean_ratings = {}
+    for movie_id, rating in user_ratings.items():
+        try:
+            clean_ratings[int(movie_id)] = float(rating)
+        except (ValueError, TypeError):
+            continue
+
+    valid_ids = [
+        movie_id
+        for movie_id in clean_ratings
+        if movie_id in _content_features.index
+    ]
+
+    if len(valid_ids) < 2:
+        return []
+
+    X_train = _content_features.loc[valid_ids].values
+    y_train = np.array([clean_ratings[movie_id] for movie_id in valid_ids])
+
+    model = RidgeCV(
+        alphas=[0.1, 1.0, 10.0, 100.0, 1000.0],
+        scoring="neg_root_mean_squared_error",
+    )
+
+    model.fit(X_train, y_train)
+
+    rated_ids = set(clean_ratings.keys())
+
+    candidate_ids = [
+        movie_id
+        for movie_id in _content_features.index
+        if int(movie_id) not in rated_ids
+    ]
+
+    if not candidate_ids:
+        return []
+
+    X_candidates = _content_features.loc[candidate_ids].values
+    scores = np.clip(model.predict(X_candidates), 0.5, 5.0)
+
+    order = np.argsort(-scores)
+
+    return [
+        (int(candidate_ids[i]), float(scores[i]))
+        for i in order[:n]
+    ]
