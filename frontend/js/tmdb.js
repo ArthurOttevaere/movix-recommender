@@ -7,28 +7,50 @@ const TMDB_GENRE_MAP = {
   53: 'Thriller', 10752: 'War', 37: 'Western'
 };
 
+// Fetch + parse JSON, with manual gzip fallback.
+// Some browser/proxy configurations strip Content-Encoding: gzip from TMDB responses,
+// causing fetch to hand raw gzip bytes to .json(). Detect the magic bytes and decompress.
+async function _tmdbGet(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  
+  // To avoid DecompressionStream issues on Safari, try native .json() first.
+  // The magic bytes check is brittle and fails on browsers without DecompressionStream.
+  try {
+    const clone = res.clone();
+    return await clone.json();
+  } catch (e) {
+    const buffer = await res.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    if (bytes[0] === 0x1f && bytes[1] === 0x8b && typeof DecompressionStream !== 'undefined') {
+      const stream = new ReadableStream({ start(c) { c.enqueue(bytes); c.close(); } });
+      return JSON.parse(await new Response(stream.pipeThrough(new DecompressionStream('gzip'))).text());
+    }
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }
+}
+
 const TMDB = {
   async getMovie(tmdbId) {
     const url = `${CONFIG.TMDB_BASE_URL}/movie/${tmdbId}?api_key=${CONFIG.TMDB_API_KEY}&language=en-US&append_to_response=credits`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`TMDB error: ${res.status}`);
-    return res.json();
+    return _tmdbGet(url);
   },
 
   async searchMovie(title, year) {
     const query = encodeURIComponent(title);
     const url = `${CONFIG.TMDB_BASE_URL}/search/movie?api_key=${CONFIG.TMDB_API_KEY}&query=${query}&year=${year}&language=en-US`;
-    const res = await fetch(url);
-    const data = await res.json();
-    return data.results?.[0] || null;
+    try {
+      const data = await _tmdbGet(url);
+      return data.results?.[0] || null;
+    } catch { return null; }
   },
 
   async searchMovies(query, page = 1) {
     const url = `${CONFIG.TMDB_BASE_URL}/search/movie?api_key=${CONFIG.TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.results || [];
+    try {
+      const data = await _tmdbGet(url);
+      return data.results || [];
+    } catch { return []; }
   },
 
   async discoverByGenre(genreOrOpts, page = 1, sortBy = 'popularity.desc') {
@@ -58,49 +80,43 @@ const TMDB = {
       params.set('vote_count.gte', '80');
     }
     const url = `${CONFIG.TMDB_BASE_URL}/discover/movie?${params.toString()}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`TMDB ${res.status}`);
-    const data = await res.json();
+    const data = await _tmdbGet(url);
     return data.results || [];
   },
 
   async topRated(page = 1) {
     const url = `${CONFIG.TMDB_BASE_URL}/movie/top_rated?api_key=${CONFIG.TMDB_API_KEY}&language=en-US&page=${page}`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.results || [];
+    const data = await _tmdbGet(url);
+    if (!data.results?.length) throw new Error('TMDB top_rated: résultats vides');
+    return data.results;
   },
 
   async trending(timeWindow = 'day') {
     const url = `${CONFIG.TMDB_BASE_URL}/trending/movie/${timeWindow}?api_key=${CONFIG.TMDB_API_KEY}&language=en-US`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.results || [];
+    const data = await _tmdbGet(url);
+    if (!data.results?.length) throw new Error('TMDB trending: résultats vides');
+    return data.results;
   },
 
   async searchPerson(query) {
     const url = `${CONFIG.TMDB_BASE_URL}/search/person?api_key=${CONFIG.TMDB_API_KEY}&query=${encodeURIComponent(query)}&include_adult=false&language=en-US`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.results || [];
+    try {
+      const data = await _tmdbGet(url);
+      return data.results || [];
+    } catch { return []; }
   },
 
   async personMovies(personId) {
     const url = `${CONFIG.TMDB_BASE_URL}/person/${personId}/movie_credits?api_key=${CONFIG.TMDB_API_KEY}&language=en-US`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.cast || [];
+    try {
+      const data = await _tmdbGet(url);
+      return data.cast || [];
+    } catch { return []; }
   },
 
   async getCollection(collectionId) {
     const url = `${CONFIG.TMDB_BASE_URL}/collection/${collectionId}?api_key=${CONFIG.TMDB_API_KEY}&language=en-US`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`TMDB ${res.status}`);
-    return res.json();
+    return _tmdbGet(url);
   },
 
   // Lightweight parse for discover/search results (no credits)

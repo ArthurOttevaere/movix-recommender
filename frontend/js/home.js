@@ -297,32 +297,23 @@ async function renderHomeCarousels(carousels, allMovies) {
 
   const cwCarousel = buildContinueWatching(allMovies);
 
-  // Promote the trending/top-10 carousel so it appears early on the page
-  const orderedRecs = [...carousels].sort((a, b) => {
-    const aTop = a.model === 'trending' ? -1 : 0;
-    const bTop = b.model === 'trending' ? -1 : 0;
-    return aTop - bTop;
-  });
-  // Give a clearer "Top 10" label to the trending carousel so users recognize it,
-  // and flag it as the ONLY carousel allowed to display the giant rank badge.
-  orderedRecs.forEach(c => {
-    if (c.model === 'trending') {
-      c.label = 'Top 8 Today';
-      c.showRank = true;
-      // Ensure at most 10 movies are shown in this carousel
-      if (c.movies && c.movies.length > 10) c.movies = c.movies.slice(0, 10);
-    }
-  });
+  if (cwCarousel) {
+    container.appendChild(createCarouselSection(cwCarousel));
+  }
 
-  const allCarousels = cwCarousel ? [cwCarousel, ...orderedRecs] : orderedRecs;
+  // ── Add live TMDB carousels: Trending (Top 8) ──────────────────────────────
+  const trendingSection = createCarouselSection({
+    id: 'tmdb-trending', label: 'Top 8 Today', model: 'trending', showRank: true
+  });
+  container.appendChild(trendingSection);
 
-  for (const c of allCarousels) {
+  for (const c of carousels) {
     container.appendChild(createCarouselSection(c));
   }
 
   // ── Add live TMDB carousels: Top Rated + Hidden Gems ───────────────────────
   const topRatedSection = createCarouselSection({
-    id: 'tmdb-top-rated', label: 'Top Rated of All Time', model: 'top_rated'
+    id: 'tmdb-top-rated', label: 'Top Ranked All Time', model: 'top_rated'
   });
   container.appendChild(topRatedSection);
 
@@ -333,11 +324,25 @@ async function renderHomeCarousels(carousels, allMovies) {
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
 
-  for (const c of allCarousels) await populateCarousel(c);
+  if (cwCarousel) await populateCarousel(cwCarousel);
+  for (const c of carousels) await populateCarousel(c);
 
   // ── Populate live carousels (parallel, no await blocking) ──────────────────
+  loadTrendingCarousel();
   loadTopRatedCarousel();
   loadHiddenGemsCarousel();
+}
+
+async function loadTrendingCarousel() {
+  try {
+    const results = await TMDB.trending('day');
+    const movies = results.slice(0, 8).map(r => TMDB.parseLite(r));
+    populateCarouselWithPosters({ id: 'tmdb-trending', movies, showRank: true });
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  } catch (e) {
+    const track = document.getElementById('track-tmdb-trending');
+    if (track) track.innerHTML = '<p class="empty-state" style="padding:20px">Could not load.</p>';
+  }
 }
 
 async function loadTopRatedCarousel() {
@@ -360,7 +365,10 @@ async function loadHiddenGemsCarousel() {
     const ratedIds = Object.keys(ratings).map(Number);
     let favGenreIds = [];
     if (ratedIds.length) {
-      const details = await Promise.allSettled(ratedIds.slice(0, 12).map(id => getMovieDetails(id)));
+      const tmdbIds = ratedIds
+        .map(id => allMoviesPool.find(m => m.movie_id === id)?.tmdb_id)
+        .filter(Boolean);
+      const details = await Promise.allSettled(tmdbIds.slice(0, 12).map(id => getMovieDetails(id)));
       const counts = {};
       details.forEach(r => {
         if (r.status !== 'fulfilled') return;
@@ -384,6 +392,18 @@ async function loadHiddenGemsCarousel() {
     if (typeof lucide !== 'undefined') lucide.createIcons();
   } catch (e) {
     const track = document.getElementById('track-tmdb-hidden-gems');
+    if (track) track.innerHTML = '<p class="empty-state" style="padding:20px">Could not load.</p>';
+  }
+}
+
+async function _loadDiscoverTopRated() {
+  try {
+    const results = await TMDB.topRated(1);
+    const movies = results.slice(0, 20).map(r => TMDB.parseLite(r));
+    populateCarouselWithPosters({ id: 'disc-foryou-top', movies });
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  } catch (e) {
+    const track = document.getElementById('track-disc-foryou-top');
     if (track) track.innerHTML = '<p class="empty-state" style="padding:20px">Could not load.</p>';
   }
 }
@@ -577,11 +597,7 @@ function renderForYouCarousels(container) {
   if (picked.movies.length) populateCarousel(picked);
 
   // Top rated
-  TMDB.topRated(1).then(results => {
-    const movies = results.slice(0, 20).map(r => TMDB.parseLite(r));
-    populateCarouselWithPosters({ id: 'disc-foryou-top', movies });
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-  }).catch(() => { });
+  _loadDiscoverTopRated();
 
   // Hidden gems
   TMDB.discoverByGenre({ sort_by: 'vote_average.desc', vote_count_gte: 200, vote_count_lte: 2500 })

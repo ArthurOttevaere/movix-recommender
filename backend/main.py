@@ -160,8 +160,8 @@ def _build_profile_stats(user: UserProfile) -> dict:
 
 @app.get("/onboarding/movies")
 def onboarding_movies():
-    """Retourne 20 films populaires couvrant des genres diversifiés."""
-    candidates = utils.popular_movies(100, exclude_ids=None)
+    """Retourne 40 films populaires couvrant des genres diversifiés."""
+    candidates = utils.popular_movies(300, exclude_ids=None)
     # Sélection greedy pour maximiser la diversité des genres
     selected: list[tuple[int, float]] = []
     seen_genres: set[str] = set()
@@ -170,18 +170,18 @@ def onboarding_movies():
         if any(g not in seen_genres for g in genres) or len(selected) < 5:
             selected.append((mid, score))
             seen_genres.update(genres)
-        if len(selected) == 20:
+        if len(selected) == 40:
             break
     # Compléter si besoin
-    if len(selected) < 20:
+    if len(selected) < 40:
         selected_ids = {mid for mid, _ in selected}
         for mid, score in candidates:
             if mid not in selected_ids:
                 selected.append((mid, score))
-            if len(selected) == 20:
+            if len(selected) == 40:
                 break
 
-    return {"movies": [utils.movie_to_dict(mid, score, {}, []) for mid, score in selected]}
+    return {"movies": [utils.movie_to_dict(mid, score, {}, []) for mid, score in selected[:40]]}
 
 
 class OnboardingSubmitBody(BaseModel):

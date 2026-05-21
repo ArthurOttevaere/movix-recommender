@@ -339,7 +339,7 @@ Avant de lancer le serveur complet, vérifie que ton modèle fonctionne :
 ```bash
 # Depuis la racine du repo
 python - <<'EOF'
-from backend.models.content import load, recommend   # adapter selon ton modèle
+from backend.models.userbased import load, recommend   # adapter selon ton modèle
 
 load()
 # 5 films notés (simulation de l'onboarding)
