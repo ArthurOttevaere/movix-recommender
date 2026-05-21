@@ -10,3 +10,4 @@ backend/artifacts/
 *.npz
 *.npy
 .env
+frontend/config.local.js

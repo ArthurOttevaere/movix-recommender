@@ -20,11 +20,20 @@ const api = {
       else localStorage.setItem('user_token', token);
       return { user_token: token, status: 'ok' };
     }
-    return fetch(`${CONFIG.API_BASE_URL}/onboarding/submit`, {
+    // Le backend attend { ratings: {"movieId": score, ...} }
+    const ratingsDict = {};
+    ratings.forEach(r => { ratingsDict[String(r.movie_id)] = r.rating; });
+    const data = await fetch(`${CONFIG.API_BASE_URL}/onboarding/submit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ratings })
+      body: JSON.stringify({ ratings: ratingsDict })
     }).then(r => r.json());
+    // Stocker le token pour que auth.isLoggedIn() retourne true
+    if (data.user_token) {
+      if (typeof pstore !== 'undefined') pstore.set('user_token', data.user_token);
+      else localStorage.setItem('user_token', data.user_token);
+    }
+    return data;
   },
 
   async getRecommendations(userToken) {
