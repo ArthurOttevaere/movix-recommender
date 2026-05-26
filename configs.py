@@ -18,13 +18,14 @@ class EvalConfig:
         # ("ContentBased_ridge_cv", ContentBased, {"features_method": "all_content_tmdb_tags2000", "regressor_method": "ridge_cv"}),
         # ("ContentBased_ridge", ContentBased, {"features_method": "all_content_tmdb_tags2000", "regressor_method": "ridge"}),
         ("LatentFactor", LatentFactor, {}),
+        ("LatentFactorPP", LatentFactorPP, {}),
         
     ]
 
     # Evaluation metrics. Only rmse is activated here for computational reasons, but you can activate more metrics if you want.
     split_metrics = ["rmse", "mae"]
-    loo_metrics = ["hit_rate", "ndcg"]
-    full_metrics = ["novelty", "miuf", "ild"]
+    loo_metrics = ["hit_rate", "ndcg@5", "ndcg@10", "ndcg@20", "precision@5", "precision@10", "precision@20", "recall@5", "recall@10", "recall@20"]
+    full_metrics = ["novelty", "coverage", "miuf", "ild"]
 
     # Split parameters
     test_size = 0.25  # -- configure the test_size (from 0 to 1) --

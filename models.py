@@ -6,7 +6,7 @@ import numpy as np
 import random as rd
 from surprise import AlgoBase
 from surprise import KNNWithMeans
-from surprise import SVD
+from surprise import SVD, SVDpp
 from surprise.prediction_algorithms.predictions import PredictionImpossible  # new import
 from constants import Constant as C  # new import
 from loaders import load_items  # new import
@@ -101,7 +101,13 @@ class ModelBaseline4(SVD):
 # Latent Factor — hyperparamètres optimisés par GridSearchCV (latent_factor.ipynb)
 class LatentFactor(SVD):
     def __init__(self, random_state=1):
-        SVD.__init__(self, n_factors=150, n_epochs=30, lr_all=0.01, reg_all=0.05, random_state=random_state)
+        SVD.__init__(self, n_factors=150, n_epochs=30, lr_all=0.01, reg_all=0.1, random_state=random_state)
+
+# SVD++ — étend SVD en intégrant le feedback implicite (items notés, quelle que soit la note)
+# Hyperparamètres : Koren, Y. (2008). Factorization meets the neighborhood. KDD '08, pp. 426–434.
+class LatentFactorPP(SVDpp):
+    def __init__(self, random_state=1):
+        SVDpp.__init__(self, n_factors=20, n_epochs=20, lr_all=0.007, reg_all=0.02, random_state=random_state)
 
 # KNN with means, using msd baseline similarity measure and user-based collaborative filtering
 class ModelBaseline5(KNNWithMeans):

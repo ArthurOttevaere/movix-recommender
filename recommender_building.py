@@ -17,7 +17,8 @@ from pathlib import Path
 
 import pandas as pd
 import numpy as np
-from surprise import SVD, Dataset, Reader
+from surprise import Dataset, Reader
+from models import LatentFactorPP
 
 from constants import Constant as C
 from loaders import load_ratings, load_items
@@ -175,8 +176,8 @@ def build_augmented_trainset(implicit_ratings_df: pd.DataFrame):
 
 def train_and_save(trainset, artifact_path: str = "backend/artifacts/svd_model.pkl"):
     """
-    Entraîne un SVD sur le trainset augmenté et sauvegarde le modèle en pickle.
-    Utilise les meilleurs paramètres trouvés par GridSearchCV.
+    Entraîne un SVD++ (LatentFactorPP) sur le trainset augmenté et sauvegarde le modèle en pickle.
+    Paramètres issus de la littérature : Koren, Y. (2008). KDD '08, pp. 426–434.
 
     Paramètres
     ----------
@@ -187,8 +188,8 @@ def train_and_save(trainset, artifact_path: str = "backend/artifacts/svd_model.p
     --------
     algo entraîné
     """
-    # Meilleurs paramètres issus du GridSearchCV (latent_factor.ipynb section 4)
-    algo = SVD(n_factors=150, n_epochs=30, lr_all=0.01, reg_all=0.05, random_state=1)
+    # Koren, Y. (2008). Factorization meets the neighborhood. KDD '08, pp. 426–434.
+    algo = LatentFactorPP()
     algo.fit(trainset)
 
     Path(artifact_path).parent.mkdir(parents=True, exist_ok=True)
