@@ -5,12 +5,12 @@ from models import *
 class EvalConfig:
     
     models = [
-        ("baseline_1", ModelBaseline1, {}),  # model_name, model class, model parameters (dict)
-        ("baseline_2", ModelBaseline2, {}),
-        ("baseline_3", ModelBaseline3, {}),
-        ("baseline_4", ModelBaseline4, {"random_state": 1}),
+        # ("baseline_1", ModelBaseline1, {}),  # model_name, model class, model parameters (dict)
+        # ("baseline_2", ModelBaseline2, {}),
+        # ("baseline_3", ModelBaseline3, {}),
+        # ("baseline_4", ModelBaseline4, {"random_state": 1}),
         # ("KNNwithMeans", ModelBaseline5, {"random_state": 1}),
-        ("UserBased_Manual", UserBased, {"k": 3, "min_k": 2, "sim_options": {'name': 'msd', 'min_support': 3, 'user_based': True}}),
+        # ("UserBased_Manual", UserBased, {"k": 3, "min_k": 2, "sim_options": {'name': 'msd', 'min_support': 3, 'user_based': True}}),
         # ("RandomSample", ContentBased, {"features_method": "title_length", "regressor_method": "random_sample"}),
         # ("RandomScore", ContentBased, {"features_method": "title_length", "regressor_method": "random_score"}),
         # ("LinearRegression_Intercept_False", ContentBased, {"features_method": "title_length", "regressor_method": "linear_regression_false"}),
@@ -33,3 +33,12 @@ class EvalConfig:
 
     # Loo parameters
     top_n_value = 40  # -- configure the numer of recommendations (> 1) --
+
+    # Negative-sampling LOO (protocole He et al. 2017 NCF, WWW'17)
+    # 1 item positif + 99 negatifs aleatoires = 100 candidats par utilisateur.
+    # Seuls les modeles dans neg_sampling_model_names sont evalues (plus rapide).
+    # Colonnes ajoutees au rapport avec le suffixe [ns] (negative sampling).
+    neg_sampling_metrics = ["hit_rate@5",  "hit_rate@10",  "hit_rate@20",
+                            "ndcg@5",      "ndcg@10",      "ndcg@20"]
+    neg_sampling_model_names = {"LatentFactor", "LatentFactorPP"}
+
