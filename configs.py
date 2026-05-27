@@ -26,10 +26,11 @@ class EvalConfig:
         
     ]
 
-    # Evaluation metrics. Only rmse is activated here for computational reasons, but you can activate more metrics if you want.
+    # Evaluation metrics — alignées avec la littérature RecSys (NCF, SASRec, LightGCN, Vargas & Castells 2011)
     split_metrics = ["rmse", "mae"]
-    loo_metrics = ["hit_rate", "ndcg@5", "ndcg@10", "ndcg@20", "precision@5", "precision@10", "precision@20", "recall@5", "recall@10", "recall@20"]
-    full_metrics = ["novelty", "coverage", "miuf", "ild"]
+    loo_metrics   = ["hit_rate@5", "hit_rate@10", "hit_rate@20",
+                     "ndcg@5",     "ndcg@10",     "ndcg@20"]
+    full_metrics  = ["coverage", "miuf", "ild"]
 
     # Split parameters
     test_size = 0.25  # -- configure the test_size (from 0 to 1) --
