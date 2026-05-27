@@ -1,6 +1,8 @@
 # local imports
 from models import *
 
+# 1. On prépare ton modèle "Hidden Gems" optimisé (k=15, min_k=2)
+algo_hidden_gems_base = UserBased_tuned(k=15, min_k=2, sim_options={'name': 'msd', 'min_support': 3})
 
 class EvalConfig:
     
@@ -23,6 +25,7 @@ class EvalConfig:
         ("UserBased_tuned_cosine_jaccard", UserBased_tuned, {"k": 40, "min_k": 3, "sim_options": {'name': 'cosine_jaccard', 'min_support': 5}}),
         ("UserBased_tuned_msd", UserBased_tuned, {"k": 40, "min_k": 3, "sim_options": {'name': 'msd', 'min_support': 5}}),
         ("UserBased_hidden_gems", UserBased_tuned, {"k": 15, "min_k": 2, "sim_options": {'name': 'msd', 'min_support': 3}}),
+        ("UserBased_Filtered_20pct", HiddenGemsFilterWrapper, {"base_algo": algo_hidden_gems_base, "exclude_top_pct": 0.20}),
         
     ]
 
