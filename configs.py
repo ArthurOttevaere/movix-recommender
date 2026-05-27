@@ -20,8 +20,9 @@ class EvalConfig:
         # ("ContentBased_ridge", ContentBased, {"features_method": "all_content_tmdb_tags2000", "regressor_method": "ridge"}),
         #("LatentFactor", LatentFactor, {}),
 
-        ("UserBased_tuned", UserBased_tuned, {"k": 40, "min_k": 3, "sim_options": {'name': 'cosine_jaccard', 'min_support': 5}}),
+        ("UserBased_tuned_cosine_jaccard", UserBased_tuned, {"k": 40, "min_k": 3, "sim_options": {'name': 'cosine_jaccard', 'min_support': 5}}),
         ("UserBased_tuned_msd", UserBased_tuned, {"k": 40, "min_k": 3, "sim_options": {'name': 'msd', 'min_support': 5}}),
+        ("UserBased_hidden_gems", UserBased_tuned, {"k": 15, "min_k": 2, "sim_options": {'name': 'msd', 'min_support': 3}}),
         
     ]
 
