@@ -116,6 +116,54 @@ class LatentFactorRanking2(SVD):
         SVD.__init__(self, n_factors=20, n_epochs=30, lr_all=0.005, reg_all=0.01, random_state=random_state)
 
 
+# iALS — Weighted Regularized Matrix Factorization (WRMF)
+# Hu Y. et al. (2008). "Collaborative Filtering for Implicit Feedback Datasets." ICDM, pp. 263-272.
+# Utilise les notes explicites comme poids de confiance : c_ui = 1 + alpha * r_ui
+# Un film noté 5/5 contribue plus à l'optimisation qu'un film noté 1/5.
+# Entraînement ALS — très rapide (~30 sec sur ML-100K).
+class ModeliALS(AlgoBase):
+    def __init__(self, factors=50, iterations=20, regularization=0.01,
+                 alpha=40, random_state=42):
+        AlgoBase.__init__(self)
+        self.factors        = factors
+        self.iterations     = iterations
+        self.regularization = regularization
+        self.alpha          = alpha   # facteur de confiance — Hu et al. (2008) §3 : c_ui = 1 + alpha * r_ui
+        self.random_state   = random_state
+        self._als           = None
+
+    def fit(self, trainset):
+        AlgoBase.fit(self, trainset)
+        from implicit.als import AlternatingLeastSquares
+        from scipy.sparse import csr_matrix
+
+        rows, cols, vals = [], [], []
+        for u in range(trainset.n_users):
+            for iid, r in trainset.ur[u]:
+                rows.append(u)
+                cols.append(iid)
+                vals.append(1.0 + self.alpha * r)  # confiance c_ui = 1 + alpha * r_ui
+
+        user_items = csr_matrix(
+            (vals, (rows, cols)),
+            shape=(trainset.n_users, trainset.n_items),
+        )
+        self._als = AlternatingLeastSquares(
+            factors=self.factors,
+            iterations=self.iterations,
+            regularization=self.regularization,
+            random_state=self.random_state,
+        )
+        self._als.fit(user_items)
+        return self
+
+    def estimate(self, u, i):
+        if self._als is None:
+            raise PredictionImpossible("Model not fitted.")
+        if not (self.trainset.knows_user(u) and self.trainset.knows_item(i)):
+            raise PredictionImpossible("User or item unknown.")
+        return float(np.dot(self._als.user_factors[u], self._als.item_factors[i]))
+
 # BPR-MF — Bayesian Personalized Ranking with Matrix Factorisation
 # Rendle et al. (2009) "BPR: Bayesian Personalized Ranking from Implicit Feedback", UAI '09.
 # Optimises pairwise ranking loss: rated items ranked above unrated items.

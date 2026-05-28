@@ -21,6 +21,7 @@ class EvalConfig:
         # ("LatentFactorPP", LatentFactorPP, {}),       # résultats déjà disponibles
         # ("LatentFactorRanking2", LatentFactorRanking2, {}),  # résultats déjà disponibles
         # ("BPR", ModelBPR, {"factors": 64, "learning_rate": 0.01, "regularization": 0.01, "iterations": 100}),  # résultats déjà disponibles
+        ("iALS", ModeliALS, {"factors": 50, "iterations": 20, "regularization": 0.01, "alpha": 40}),
 
     ]
 
@@ -42,5 +43,5 @@ class EvalConfig:
     # Colonnes ajoutees au rapport avec le suffixe [ns] (negative sampling).
     neg_sampling_metrics = ["hit_rate@5",  "hit_rate@10",  "hit_rate@20",
                             "ndcg@5",      "ndcg@10",      "ndcg@20"]
-    neg_sampling_model_names = {"LatentFactor", "LatentFactorPP", "LatentFactorRanking2", "BPR"}
+    neg_sampling_model_names = {"LatentFactor", "LatentFactorPP", "LatentFactorRanking2", "BPR", "iALS"}
 
