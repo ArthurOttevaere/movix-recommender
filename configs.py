@@ -17,15 +17,15 @@ class EvalConfig:
         # ("LinearRegression_Intercept_True", ContentBased, {"features_method": "title_length", "regressor_method": "linear_regression_true"}),
         # ("ContentBased_ridge_cv", ContentBased, {"features_method": "all_content_tmdb_tags2000", "regressor_method": "ridge_cv"}),
         # ("ContentBased_ridge", ContentBased, {"features_method": "all_content_tmdb_tags2000", "regressor_method": "ridge"}),
-        # ("LatentFactor", LatentFactor, {}),          # résultats déjà disponibles
-        # ("LatentFactorPP", LatentFactorPP, {}),       # résultats déjà disponibles
-        # ("LatentFactorRanking2", LatentFactorRanking2, {}),  # résultats déjà disponibles
-        # ("BPR", ModelBPR, {"factors": 64, "learning_rate": 0.01, "regularization": 0.01, "iterations": 100}),  # résultats déjà disponibles
+        # ("LatentFactor", LatentFactor, {}),          # results already available
+        # ("LatentFactorPP", LatentFactorPP, {}),       # results already available
+        # ("LatentFactorRanking2", LatentFactorRanking2, {}),  # results already available
+        # ("BPR", ModelBPR, {"factors": 64, "learning_rate": 0.01, "regularization": 0.01, "iterations": 100}),  # results already available
         ("iALS", ModeliALS, {"factors": 50, "iterations": 20, "regularization": 0.01, "alpha": 40}),
 
     ]
 
-    # Evaluation metrics — alignées avec la littérature RecSys (NCF, SASRec, LightGCN, Vargas & Castells 2011)
+    # Evaluation metrics — aligned with RecSys literature (NCF, SASRec, LightGCN, Vargas & Castells 2011)
     split_metrics = ["rmse", "mae"]
     loo_metrics   = ["hit_rate@5", "hit_rate@10", "hit_rate@20",
                      "ndcg@5",     "ndcg@10",     "ndcg@20"]
@@ -37,10 +37,10 @@ class EvalConfig:
     # Loo parameters
     top_n_value = 40  # -- configure the numer of recommendations (> 1) --
 
-    # Negative-sampling LOO (protocole He et al. 2017 NCF, WWW'17)
-    # 1 item positif + 99 negatifs aleatoires = 100 candidats par utilisateur.
-    # Seuls les modeles dans neg_sampling_model_names sont evalues (plus rapide).
-    # Colonnes ajoutees au rapport avec le suffixe [ns] (negative sampling).
+    # Negative-sampling LOO (protocol He et al. 2017 NCF, WWW'17)
+    # 1 positive item + 99 random negatives = 100 candidates per user.
+    # Only models in neg_sampling_model_names are evaluated (faster).
+    # Columns added to the report with suffix [ns] (negative sampling).
     neg_sampling_metrics = ["hit_rate@5",  "hit_rate@10",  "hit_rate@20",
                             "ndcg@5",      "ndcg@10",      "ndcg@20"]
     neg_sampling_model_names = {"LatentFactor", "LatentFactorPP", "LatentFactorRanking2", "BPR", "iALS"}

@@ -98,19 +98,19 @@ class ModelBaseline4(SVD):
     def __init__(self, random_state=1):
         SVD.__init__(self, n_factors=100, random_state=random_state)
 
-# Latent Factor — hyperparamètres optimisés par GridSearchCV (latent_factor.ipynb)
+# Latent Factor — hyperparameters tuned via GridSearchCV (latent_factor.ipynb)
 class LatentFactor(SVD):
     def __init__(self, random_state=1):
         SVD.__init__(self, n_factors=150, n_epochs=30, lr_all=0.01, reg_all=0.1, random_state=random_state)
 
-# SVD++ — étend SVD en intégrant le feedback implicite (items notés, quelle que soit la note)
-# Hyperparamètres : Koren, Y. (2008). Factorization meets the neighborhood. KDD '08, pp. 426–434.
+# SVD++ — extends SVD by integrating implicit feedback (all rated items, regardless of rating value)
+# Hyperparameters: Koren, Y. (2008). Factorization meets the neighborhood. KDD '08, pp. 426-434.
 class LatentFactorPP(SVDpp):
     def __init__(self, random_state=1):
         SVDpp.__init__(self, n_factors=20, n_epochs=20, lr_all=0.007, reg_all=0.02, random_state=random_state)
 
-# SVD ranking v2 — hyperparamètres issus du GridSearchCV orienté classement (latent_factor.ipynb §4c)
-# n_factors=20 + reg_all=0.01 : meilleur compromis RMSE(0.828)/coverage — reg divisé par 2 vs v1.
+# SVD ranking v2 — hyperparameters from ranking-oriented GridSearchCV (latent_factor.ipynb §4c)
+# n_factors=20 + reg_all=0.01: best RMSE(0.828)/coverage trade-off — reg halved vs v1.
 class LatentFactorRanking2(SVD):
     def __init__(self, random_state=1):
         SVD.__init__(self, n_factors=20, n_epochs=30, lr_all=0.005, reg_all=0.01, random_state=random_state)
@@ -118,9 +118,9 @@ class LatentFactorRanking2(SVD):
 
 # iALS — Weighted Regularized Matrix Factorization (WRMF)
 # Hu Y. et al. (2008). "Collaborative Filtering for Implicit Feedback Datasets." ICDM, pp. 263-272.
-# Utilise les notes explicites comme poids de confiance : c_ui = 1 + alpha * r_ui
-# Un film noté 5/5 contribue plus à l'optimisation qu'un film noté 1/5.
-# Entraînement ALS — très rapide (~30 sec sur ML-100K).
+# Uses explicit ratings as confidence weights: c_ui = 1 + alpha * r_ui
+# A 5-star film contributes more to the optimisation than a 1-star film.
+# ALS training — very fast (~30 sec on ML-100K).
 class ModeliALS(AlgoBase):
     def __init__(self, factors=50, iterations=20, regularization=0.01,
                  alpha=40, random_state=42):
@@ -128,7 +128,7 @@ class ModeliALS(AlgoBase):
         self.factors        = factors
         self.iterations     = iterations
         self.regularization = regularization
-        self.alpha          = alpha   # facteur de confiance — Hu et al. (2008) §3 : c_ui = 1 + alpha * r_ui
+        self.alpha          = alpha   # confidence scaling — Hu et al. (2008) §3: c_ui = 1 + alpha * r_ui
         self.random_state   = random_state
         self._als           = None
 
@@ -142,7 +142,7 @@ class ModeliALS(AlgoBase):
             for iid, r in trainset.ur[u]:
                 rows.append(u)
                 cols.append(iid)
-                vals.append(1.0 + self.alpha * r)  # confiance c_ui = 1 + alpha * r_ui
+                vals.append(1.0 + self.alpha * r)  # confidence weight c_ui = 1 + alpha * r_ui
 
         user_items = csr_matrix(
             (vals, (rows, cols)),
@@ -614,7 +614,7 @@ class ContentBased(AlgoBase):
             return df_features.fillna(0)
 
         elif features_method == "all_content_decade":
-            # all_content + decade one-hot ADDITIF (year normalisé conservé)
+            # all_content + decade one-hot ADDITIVE (normalised year kept)
             df_genome_scaled = self._load_genome_scaled()
             df_tags = self._load_tags()
             df_year, df_genres = self._load_year_genres(df_items, with_decades=True)
@@ -672,7 +672,7 @@ class ContentBased(AlgoBase):
             return df_features.fillna(0)
 
         elif features_method == "genome_tags1128_only":
-            # Hypothèse minimale : juste genome (1128) + tags(1128). Match exact de l'indice ami.
+            # Minimal hypothesis: just genome (1128) + tags(1128). Exact match de l'indice ami.
             df_genome_scaled = self._load_genome_scaled()
             df_tags = self._load_tags(max_features=1128, ngrams=(1, 2), sublinear=True, min_df=3)
             df_features = df_genome_scaled.join(df_tags, how='outer')
@@ -695,7 +695,7 @@ class ContentBased(AlgoBase):
             return df_features.fillna(0)
 
         elif features_method == "all_content_tmdb_tags2000":
-            # Pousse plus loin : tags max=2000 (au-delà de la dim genome).
+            # Pushes further: tags max=2000 (beyond genome dimension).
             df_genome_scaled = self._load_genome_scaled()
             df_tags = self._load_tags(max_features=2000, ngrams=(1, 2), sublinear=True, min_df=3)
             df_year, df_genres = self._load_year_genres(df_items, with_decades=True)
