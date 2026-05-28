@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from backend import utils
-from backend.models import content, svd, userbased, load_all
+from backend.models import content, svd, userbased, ials, bpr, load_all
 from backend.store import (
     UserProfile,
     create_user,
@@ -211,6 +211,8 @@ async def get_recommendations(token: str):
         loop.run_in_executor(None, content.recommend, ratings, N),
         loop.run_in_executor(None, svd.recommend, ratings, N),
         loop.run_in_executor(None, userbased.recommend, ratings, N),
+        loop.run_in_executor(None, ials.recommend, ratings, N),
+        loop.run_in_executor(None, bpr.recommend, ratings, N),
         return_exceptions=True,
     )
 
@@ -224,6 +226,8 @@ async def get_recommendations(token: str):
     content_recs  = safe(results[0])
     svd_recs      = safe(results[1])
     ub_recs       = safe(results[2])
+    ials_recs     = safe(results[3])
+    bpr_recs      = safe(results[4])
 
     # Ensemble : interleave les 3 modèles, dédupliqué
     seen: set[int] = set()
@@ -240,7 +244,7 @@ async def get_recommendations(token: str):
     hero["backdrop_url"] = None
     hero["tagline"] = ""
 
-    all_pairs = content_recs + svd_recs + ub_recs
+    all_pairs = content_recs + svd_recs + ub_recs + ials_recs + bpr_recs
     genre_carousels = _build_genre_carousels(all_pairs, ratings, user.watchlist)
 
     return {
@@ -266,6 +270,20 @@ async def get_recommendations(token: str):
                 "model": "user_based",
                 "explanation": "Users with similar taste profiles",
                 "movies": _pairs_to_movies(ub_recs, ratings, user.watchlist, 20),
+            },
+            {
+                "id": "top_picks",
+                "label": "Top Picks For You",
+                "model": "ials",
+                "explanation": "Confidence-weighted implicit ALS",
+                "movies": _pairs_to_movies(ials_recs, ratings, user.watchlist, 20),
+            },
+            {
+                "id": "discover_new",
+                "label": "Discover Something New",
+                "model": "bpr",
+                "explanation": "Ranking-based pairwise model",
+                "movies": _pairs_to_movies(bpr_recs, ratings, user.watchlist, 20),
             },
             {
                 "id": "discovery",

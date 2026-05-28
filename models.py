@@ -206,6 +206,68 @@ class ModelBPR(AlgoBase):
             raise PredictionImpossible("User or item unknown.")
         return float(np.dot(self._bpr.user_factors[u], self._bpr.item_factors[i]))
 
+
+# BPR-MF + Popularity Penalty for novelty — suited for "Discover Something New".
+# Overrides test() to apply a log-popularity penalty to BPR scores before ranking.
+# β controls the relevance/novelty trade-off: 0.0 = pure BPR, 1.0 = pure novelty.
+# Source: Abdollahpouri et al. (2019). "Managing Popularity Bias in Recommender
+#         Systems with Personalized Re-ranking." FLAIRS'19.
+class ModelBPRNovelty(ModelBPR):
+    def __init__(self, beta=0.2,
+                 factors=64, learning_rate=0.01, regularization=0.01,
+                 iterations=100, random_state=42):
+        ModelBPR.__init__(self, factors=factors, learning_rate=learning_rate,
+                          regularization=regularization, iterations=iterations,
+                          random_state=random_state)
+        self.beta = beta          # novelty weight: 0 = pure BPR, 1 = pure novelty
+        self._log_pop = None      # log-popularity vector indexed by inner item id
+
+    def fit(self, trainset):
+        ModelBPR.fit(self, trainset)
+        # popularity(i) = number of users who rated item i in the trainset
+        pop = np.array([len(trainset.ir[i]) for i in range(trainset.n_items)], dtype=np.float64)
+        self._log_pop = np.log1p(pop)   # log(1 + pop) — stable at 0
+        return self
+
+    def test(self, testset):
+        from collections import defaultdict
+        from surprise.prediction_algorithms.predictions import Prediction
+
+        raw_preds = ModelBPR.test(self, testset)
+
+        # Group predictions by user
+        user_preds = defaultdict(list)
+        for pred in raw_preds:
+            user_preds[pred.uid].append(pred)
+
+        reranked = []
+        log_pop_max = float(self._log_pop.max()) if self._log_pop.max() > 0 else 1.0
+
+        for uid, preds in user_preds.items():
+            scores = np.array([p.est for p in preds])
+            s_min, s_max = scores.min(), scores.max()
+            norm_scores = (scores - s_min) / (s_max - s_min) if s_max > s_min else np.full(len(preds), 0.5)
+
+            # Popularity penalty: penalise popular items proportionally
+            # Items absent from the trainset (can occur in split evaluation) get penalty 0
+            def _pop_penalty(raw_iid):
+                try:
+                    return self._log_pop[self.trainset.to_inner_iid(raw_iid)] / log_pop_max
+                except ValueError:
+                    return 0.0
+
+            adjusted = np.array([
+                (1 - self.beta) * norm_scores[k] - self.beta * _pop_penalty(p.iid)
+                for k, p in enumerate(preds)
+            ])
+
+            for k, pred in enumerate(preds):
+                reranked.append(Prediction(pred.uid, pred.iid, pred.r_ui,
+                                           float(adjusted[k]), pred.details))
+
+        return reranked
+
+
 # KNN with means, using msd baseline similarity measure and user-based collaborative filtering
 class ModelBaseline5(KNNWithMeans):
     def __init__(self, random_state=1):

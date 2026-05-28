@@ -1,6 +1,6 @@
-from backend.models import content, svd, userbased
+from backend.models import content, svd, userbased, ials, bpr
 
-_MODELS = [("content", content), ("svd", svd), ("userbased", userbased)]
+_MODELS = [("content", content), ("svd", svd), ("userbased", userbased), ("ials", ials), ("bpr", bpr)]
 
 
 def load_all() -> None:
