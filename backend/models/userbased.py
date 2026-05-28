@@ -1,52 +1,35 @@
 """
-User-Based model — Personne 3 implémente ce fichier.
+User-Based model — Modèle KNNBaseline (Pearson Baseline) à la volée.
 
 Interface à respecter :
     load() → None
     recommend(user_ratings, n) → list[tuple[int, float]]
 
-Entrées de recommend() :
-    user_ratings : dict {movie_id (int) → rating (float, 0.5–5.0)}
-    n            : nombre de recommandations à retourner
-
-Sortie de recommend() :
-    Liste de (movie_id, raw_score) triée par score décroissant.
-    Les scores doivent être clampés dans [0.5, 5.0].
-    Retourner [] si impossible (artefact manquant, pas assez de données).
-
-Stratégie — similarité Cosine-Jaccard hybride à la volée :
-    1. Construire le vecteur du nouvel utilisateur aligné sur les inner_ids
-       (utiliser _item_index pour la conversion raw_movieId → colonne).
-    2. Pour chaque utilisateur existant u dans _rating_matrix :
-         intersection = items notés par les deux
-         si support == 0 → sim = 0
-         sinon : cosine = dot(r_new, r_u) / (norm(r_new) * norm(r_u)) sur l'intersection
-                 jaccard = intersection / union
-                 sim = cosine * jaccard
-    3. Garder les K meilleurs voisins (K = 40).
-    4. Pour chaque film non noté j :
-         pred = mean_new + Σ(sim_u * (r_uj - mean_u)) / Σ|sim_u|
-    5. Clipper à [0.5, 5.0], trier décroissant, retourner top-n.
-
-    Astuce performance : utiliser les opérations matricielles scipy sparse
-    plutôt que densifier toute la matrice.
+Stratégie — Pearson Baseline dynamique :
+    1. Charger les biais précalculés par Surprise (mu, bu, bi).
+    2. Estimer le biais du nouvel utilisateur (b_new) selon la formule ALS de Surprise.
+    3. Calculer les déviations (note_réelle - baseline_estimée) pour le nouvel utilisateur.
+    4. Trouver l'intersection avec la matrice backend et calculer les déviations des voisins.
+    5. Appliquer la similarité de Pearson avec le Shrinkage standard (100).
+    6. Prédire les notes manquantes en pondérant les déviations des K meilleurs voisins.
 
 Génération des artefacts (à ajouter dans ton notebook) :
-    import pickle, numpy as np
+    import pickle
     from scipy.sparse import csr_matrix, save_npz
-    from surprise import Dataset, Reader
+    from surprise import Dataset, Reader, KNNBaseline
     from loaders import load_ratings
     from constants import Constant as C
 
-    df = load_ratings()
+    df = load_ratings(surprise_format=False)
     reader = Reader(rating_scale=C.RATINGS_SCALE)
     data = Dataset.load_from_df(df[[C.USER_ID_COL, C.ITEM_ID_COL, C.RATING_COL]], reader)
     trainset = data.build_full_trainset()
 
-    # Paramètres alignés sur les constantes backend : K=40, min_k=3, min_support=5
-    ub_algo = UserBased_tuned(k=40, min_k=3, sim_options={'name': 'cosine_jaccard', 'min_support': 5})
+    # Le modèle exact validé lors de ton évaluation Two-Stage
+    ub_algo = KNNBaseline(k=40, min_k=2, sim_options={'name': 'pearson_baseline', 'user_based': True, 'min_support': 3})
     ub_algo.fit(trainset)
 
+    # 1. Sauvegarde de la matrice sparse pour les calculs rapides
     ts = ub_algo.trainset
     rows, cols, vals = [], [], []
     for u in range(ts.n_users):
@@ -55,13 +38,11 @@ Génération des artefacts (à ajouter dans ton notebook) :
     R = csr_matrix((vals, (rows, cols)), shape=(ts.n_users, ts.n_items))
     save_npz("backend/artifacts/rating_matrix.npz", R)
 
-    means = np.array([np.mean([r for _, r in ts.ur[u]]) for u in range(ts.n_users)])
-    np.save("backend/artifacts/user_means.npy", means)
-
+    # 2. Sauvegarde du modèle (qui contient mu, bu, et bi)
     with open("backend/artifacts/userbased_model.pkl", "wb") as f:
         pickle.dump(ub_algo, f)
 
-    print(f"Sauvegardé : {ts.n_users} users, {ts.n_items} items")
+    print(f"Artefacts générés : {ts.n_users} users, {ts.n_items} items")
 """
 
 import pickle
@@ -71,128 +52,135 @@ import numpy as np
 from scipy.sparse import load_npz
 
 ARTIFACTS_DIR = Path(__file__).parent.parent / "artifacts"
-K_NEIGHBORS = 40          # nombre de voisins à considérer
-MIN_ITEM_SUPPORT = 3      # un film doit avoir été noté par ≥ N voisins pour être recommandé
-MIN_USER_SUPPORT = 5      # un voisin doit avoir noté ≥ N films en commun avec le nouvel utilisateur (= min_support)
-SIG_WEIGHTING_CAP = 20    # plafond pour la pondération par significance
-SHRINKAGE = 5.0           # régularisation : tire la prédiction vers new_mean quand peu de voisins soutiennent l'item
+K_NEIGHBORS = 40          # k (le voisinage max)
+MIN_ITEM_SUPPORT = 2      # min_k (combien de voisins doivent avoir vu le film)
+MIN_USER_SUPPORT = 3      # min_support (intersection minimale avec un voisin)
+SHRINKAGE = 100.0         # Régularisation standard de Pearson dans Surprise
+REG_U = 15.0              # Régularisation ALS pour estimer le biais du nouvel utilisateur
 
-_userbased_model = None  # modèle entraîné (pour accéder au trainset)
-_rating_matrix = None    # scipy.sparse.csr_matrix (n_users × n_items)
-_user_means = None       # np.ndarray (n_users,)
-_item_index: dict = {}   # {raw_movie_id (int) → inner_item_id (int)}
+_userbased_model = None  
+_rating_matrix = None    
+_mu = 0.0                # Global mean
+_bu = None               # User biases (backend)
+_bi = None               # Item biases (backend)
+_item_index: dict = {}   
 
 
 def load() -> None:
     """Charge les artefacts user-based depuis artifacts/."""
-    global _userbased_model, _rating_matrix, _user_means, _item_index
+    global _userbased_model, _rating_matrix, _mu, _bu, _bi, _item_index
     with open(ARTIFACTS_DIR / "userbased_model.pkl", "rb") as f:
         _userbased_model = pickle.load(f)
+    
     _rating_matrix = load_npz(ARTIFACTS_DIR / "rating_matrix.npz")
-    _user_means = np.load(ARTIFACTS_DIR / "user_means.npy")
+    
+    # Extraction directe des biais calculés par le C++ de Surprise
     ts = _userbased_model.trainset
+    _mu = ts.global_mean
+    _bu = _userbased_model.bu
+    _bi = _userbased_model.bi
+    
     _item_index = {int(ts.to_raw_iid(iid)): iid for iid in range(ts.n_items)}
-    print(f"[userbased] {ts.n_users} utilisateurs, {ts.n_items} films chargés.")
+    print(f"[userbased_pearson] {_rating_matrix.shape[0]} utilisateurs, {_rating_matrix.shape[1]} films chargés.")
 
 
 def recommend(user_ratings: dict, n: int = 20) -> list[tuple[int, float]]:
-    """Retourne top-n (movie_id, raw_score) via similarité Cosine-Jaccard à la volée."""
+    """Retourne top-n (movie_id, raw_score) via similarité Pearson Baseline à la volée."""
     if _userbased_model is None or _rating_matrix is None:
         return []
 
     ts = _userbased_model.trainset
     n_items = ts.n_items
 
-    # 1. Items du nouvel utilisateur (inner ids + ratings)
+    # 1. Extraction des items connus par l'algo
     new_inner = {_item_index[mid]: r for mid, r in user_ratings.items() if mid in _item_index}
     if not new_inner:
         return []
 
     inner_ids = np.array(list(new_inner.keys()), dtype=int)
     new_ratings = np.array([new_inner[i] for i in inner_ids], dtype=float)
-    new_mean = float(np.mean(new_ratings))
+    
+    # 2. Calcul du biais du nouvel utilisateur (b_new) via l'équation ALS
+    b_i_new = _bi[inner_ids]
+    b_new = np.sum(new_ratings - _mu - b_i_new) / (len(inner_ids) + REG_U)
+    
+    # Déviations du nouvel utilisateur par rapport à sa propre baseline
+    new_devs = new_ratings - (_mu + b_new + b_i_new)
+    norm_new = np.linalg.norm(new_devs)
 
-    # 2. Similarité Cosine-Jaccard — vectorisée sur les colonnes des items notés uniquement
-    sub = _rating_matrix[:, inner_ids].toarray().astype(float)  # (n_users, n_rated)
-    rated_mask = sub != 0                                         # items communs (bool)
-    support = rated_mask.sum(axis=1)                              # nombre d'items en intersection (n_users,)
-
-    # Seuil adaptatif pour le Cold Start d'un utilisateur sur le site web
-    effective_min_support = max(2, min(MIN_USER_SUPPORT, len(inner_ids) // 2))
-
+    # 3. Calcul de la similarité de Pearson avec tous les utilisateurs existants
+    sub = _rating_matrix[:, inner_ids].toarray().astype(float)
+    mask = sub > 0
+    support = mask.sum(axis=1)
+    
+    valid = support >= MIN_USER_SUPPORT
     sims = np.zeros(ts.n_users)
-    valid = support >= effective_min_support
 
-    if valid.any():
-        # --- PARTIE A : CALCUL DU COSINUS SUR L'INTERSECTION ---
-        # Produit scalaire restreint aux items communs
-        dot_products = np.dot(sub, new_ratings)  # (n_users,)
+    if valid.any() and norm_new > 0:
+        sub_devs = np.zeros_like(sub)
         
-        # Norme du nouvel utilisateur sur ces items (scalaire)
-        norm_new = np.linalg.norm(new_ratings)
+        # Calcul de la baseline des voisins (broadcast optimisé)
+        baseline_v = _mu + _bu[:, None] + b_i_new[None, :]
+        sub_devs[mask] = sub[mask] - baseline_v[mask]
         
-        # Normes de chaque utilisateur du backend sur la sous-matrice
-        norm_users = np.sqrt((sub ** 2).sum(axis=1))  # (n_users,)
+        # Pearson numérateur et dénominateur
+        dot_products = np.dot(sub_devs, new_devs)
+        norm_users = np.sqrt((sub_devs ** 2).sum(axis=1))
         
-        # Calcul du cosinus avec sécurité division par zéro
         denominators = norm_users * norm_new
-        cosine_sims = np.where(denominators > 0, dot_products / denominators, 0.0)
-
-        # --- PARTIE B : CALCUL DE L'INDICE DE JACCARD ---
-        # Récupération du nombre total de films notés au global par chaque user du backend
-        total_items_per_user = np.array((_rating_matrix != 0).sum(axis=1)).flatten()
+        raw_sims = np.where(denominators > 0, dot_products / denominators, 0.0)
         
-        # Formule de l'union : Cardinal(A) + Cardinal(B) - Cardinal(A ∩ B)
-        union_counts = total_items_per_user + len(inner_ids) - support
-        jaccard_sims = np.where(union_counts > 0, support / union_counts, 0.0)
+        # Application du Shrinkage de Pearson (Surprise Formula)
+        shrunk_sims = raw_sims * (support - 1) / (support - 1 + SHRINKAGE)
+        sims[valid] = shrunk_sims[valid]
 
-        # --- PARTIE C : COMBINAISON HYBRIDE & SIGNIFICANCE WEIGHTING ---
-        combined_sims = cosine_sims * jaccard_sims
-        sig_weight = np.minimum(support, SIG_WEIGHTING_CAP) / SIG_WEIGHTING_CAP
-        
-        sims[valid] = combined_sims[valid] * sig_weight[valid]
-
-    # 3. K meilleurs voisins (seulement ceux avec sim > 0)
+    # 4. Sélection des K meilleurs voisins (seulement les corrélations positives)
     candidate_idx = np.where(sims > 0)[0]
     if candidate_idx.size == 0:
         return []
+    
     order = candidate_idx[np.argsort(-sims[candidate_idx])][:K_NEIGHBORS]
     top_k = order
-    top_k_sims = sims[top_k]
+    
+    nb_matrix = _rating_matrix[top_k].toarray().astype(float)
+    sims_k = sims[top_k]
+    bu_k = _bu[top_k]
 
-    # 4. Prédire — sous-matrice (K × n_items) des voisins
-    nb_matrix = _rating_matrix[top_k].toarray().astype(float)   # (K, n_items)
-    nb_means = _user_means[top_k]                                 # (K,)
-
+    # 5. Prédiction des items non notés
     rated_inner = set(new_inner.keys())
     results = []
+    
     for i in range(n_items):
         if i in rated_inner:
             continue
+            
         col = nb_matrix[:, i]
-        nb_mask = col != 0
-        n_supporting = int(nb_mask.sum())
+        nb_mask = col > 0
+        n_supp = nb_mask.sum()
         
-        if n_supporting < MIN_ITEM_SUPPORT:
+        if n_supp < MIN_ITEM_SUPPORT:
             continue
             
-        sims_i = top_k_sims[nb_mask]
-        denom = float(sims_i.sum())
+        sims_active = sims_k[nb_mask]
+        denom = np.abs(sims_active).sum()
         if denom == 0:
             continue
             
-        num = float(np.dot(sims_i, col[nb_mask] - nb_means[nb_mask]))
-        pred = new_mean + num / (denom + SHRINKAGE)
-        results.append((int(ts.to_raw_iid(i)), pred, n_supporting))
+        # On pondère la déviation des voisins (r_vi - baseline_vi) par la similarité
+        dev_vj = col[nb_mask] - (_mu + bu_k[nb_mask] + _bi[i])
+        num = np.dot(sims_active, dev_vj)
+        
+        # Note = Baseline_nouvel_utilisateur + déviation pondérée
+        pred = _mu + b_new + _bi[i] + (num / denom)
+        results.append((int(ts.to_raw_iid(i)), pred, n_supp))
 
     if not results:
         return []
 
-    # Trier sur la prédiction brute (pas clippée) pour préserver l'ordre
+    # 6. Tri et Normalisation UI
     results.sort(key=lambda x: (-x[1], -x[2]))
     top = [(mid, score) for mid, score, _ in results[:n]]
 
-    # Normalisation min-max sur le top-n pour étaler les pourcentages sur l'HTML
     raw_scores = [s for _, s in top]
     lo, hi = min(raw_scores), max(raw_scores)
     if hi > lo:
