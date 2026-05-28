@@ -1169,8 +1169,6 @@ class UserBased_tuned(AlgoBase):
                 potential_neighbors.append((v, sim_uv, r_vi))
         
         # Pick top neighbors efficiently using heapq
-        # Since we want to sort by similarity_value (index 1 of the tuple), 
-        # we use a lambda function for the key.
         top_neighbors = heapq.nlargest(self.k, potential_neighbors, key=lambda x: x[1])
         
         # Step 2: Compute the weighted average
@@ -1221,17 +1219,40 @@ class UserBased_tuned(AlgoBase):
                 mask_intersection = ~np.isnan(row_i - row_j)
                 support = np.sum(mask_intersection)
                 
+                # FIX CRITIQUE : Assigne une valeur par défaut locale immédiate.
+                # Cela élimine définitivement le UnboundLocalError.
+                current_similarity = 0.0
+                
                 if support >= min_support:
                     if sim_name == 'msd':
                         sq_diff = np.sum((row_i[mask_intersection] - row_j[mask_intersection])**2)
                         msd = sq_diff / support
-                        similarity = 1 / (msd + 1)
+                        current_similarity = 1 / (msd + 1)
                     
                     elif sim_name == 'jacard':
-                        # Jaccard : intersection / union
                         mask_union = ~np.isnan(row_i) | ~np.isnan(row_j)
                         union_count = np.sum(mask_union)
-                        similarity = support / union_count if union_count > 0 else 0
+                        current_similarity = support / union_count if union_count > 0 else 0.0
                     
-                    self.sim[i, j] = similarity
-                    self.sim[j, i] = similarity
+                    elif sim_name == 'cosine_jaccard':
+                        # 1. Extraction des vecteurs sur l'intersection
+                        u_vec = row_i[mask_intersection]
+                        v_vec = row_j[mask_intersection]
+                        
+                        # 2. Calcul du Cosinus de base
+                        dot_product = np.sum(u_vec * v_vec)
+                        norm_u = np.sqrt(np.sum(u_vec**2))
+                        norm_v = np.sqrt(np.sum(v_vec**2))
+                        cosine = dot_product / (norm_u * norm_v) if (norm_u * norm_v) > 0 else 0.0
+                        
+                        # 3. Calcul de l'indice de Jaccard
+                        mask_union = ~np.isnan(row_i) | ~np.isnan(row_j)
+                        union_count = np.sum(mask_union)
+                        jaccard = support / union_count if union_count > 0 else 0.0
+                        
+                        # 4. Fusion des deux métriques
+                        current_similarity = float(cosine * jaccard)
+                    
+                # Assignation sécurisée dans la matrice globale
+                self.sim[i, j] = current_similarity
+                self.sim[j, i] = current_similarity
