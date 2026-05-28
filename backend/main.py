@@ -158,30 +158,69 @@ def _build_profile_stats(user: UserProfile) -> dict:
 
 # ─── Onboarding ──────────────────────────────────────────────────────────────
 
+ONBOARDING_N    = 40   # nombre de films proposés à l'onboarding
+ONBOARDING_POOL = 600  # vivier de films populaires (donc reconnaissables) où piocher
+
+
+def _select_diverse_seeds(
+    candidates: list[tuple[int, float]],
+    k: int,
+) -> list[tuple[int, float]]:
+    """Sélection « farthest-first » (k-center) dans l'espace latent iALS.
+
+    On part d'un vivier de films populaires et on retient k films dont les vecteurs
+    latents sont maximalement dispersés (en direction de goût, distance cosinus).
+    Chaque note d'onboarding renseigne ainsi une région de goût distincte → le
+    vecteur utilisateur (folding-in) est bien mieux résolu pour TOUS les modèles,
+    au lieu de pointer vers la seule zone « blockbuster grand public ».
+
+    Retourne un sous-ensemble de `candidates` (≤ k). Repli sur [] si les facteurs
+    iALS sont indisponibles (le caller complète alors par popularité).
+    """
+    score_by_id = {mid: score for mid, score in candidates}
+    found_ids, X = ials.item_factor_vectors([mid for mid, _ in candidates])
+    if X is None:
+        return []
+    if len(found_ids) <= k:
+        return [(mid, score_by_id[mid]) for mid in found_ids]
+
+    # Normalisation L2 → la distance reflète la DIRECTION du goût, pas la
+    # magnitude (qui est corrélée à la popularité, déjà bornée par le vivier).
+    Xn = X / (np.linalg.norm(X, axis=1, keepdims=True) + 1e-8)
+
+    # found_ids est en ordre de popularité décroissante → on démarre du plus connu.
+    selected = [0]
+    min_dist = 1.0 - Xn @ Xn[0]   # distance cosinus à la première graine
+    for _ in range(k - 1):
+        nxt = int(np.argmax(min_dist))
+        selected.append(nxt)
+        min_dist = np.minimum(min_dist, 1.0 - Xn @ Xn[nxt])
+        min_dist[nxt] = -1.0       # ne jamais re-sélectionner
+
+    return [(found_ids[i], score_by_id[found_ids[i]]) for i in selected]
+
+
 @app.get("/onboarding/movies")
 def onboarding_movies():
-    """Retourne 40 films populaires couvrant des genres diversifiés."""
-    candidates = utils.popular_movies(300, exclude_ids=None)
-    # Sélection greedy pour maximiser la diversité des genres
-    selected: list[tuple[int, float]] = []
-    seen_genres: set[str] = set()
-    for mid, score in candidates:
-        genres = utils._get_genres(mid)
-        if any(g not in seen_genres for g in genres) or len(selected) < 5:
-            selected.append((mid, score))
-            seen_genres.update(genres)
-        if len(selected) == 40:
-            break
-    # Compléter si besoin
-    if len(selected) < 40:
-        selected_ids = {mid for mid, _ in selected}
+    """Retourne 40 films reconnaissables ET couvrant des goûts variés.
+
+    Vivier = films populaires (reconnaissables) ; sélection finale = farthest-first
+    dans l'espace latent iALS pour maximiser l'information apportée par chaque note.
+    """
+    candidates = utils.popular_movies(ONBOARDING_POOL, exclude_ids=None)
+    selected = _select_diverse_seeds(candidates, ONBOARDING_N)
+
+    # Repli / complétion par popularité si iALS indisponible ou pas assez de films.
+    if len(selected) < ONBOARDING_N:
+        seen = {mid for mid, _ in selected}
         for mid, score in candidates:
-            if mid not in selected_ids:
+            if mid not in seen:
                 selected.append((mid, score))
-            if len(selected) == 40:
+                seen.add(mid)
+            if len(selected) == ONBOARDING_N:
                 break
 
-    return {"movies": [utils.movie_to_dict(mid, score, {}, []) for mid, score in selected[:40]]}
+    return {"movies": [utils.movie_to_dict(mid, score, {}, []) for mid, score in selected[:ONBOARDING_N]]}
 
 
 class OnboardingSubmitBody(BaseModel):

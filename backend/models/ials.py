@@ -61,6 +61,31 @@ def load() -> None:
     print(f"[ials] Model loaded — {_ials_model.trainset.n_items} films, {_item_factors.shape[1]} factors.")
 
 
+def item_factor_vectors(raw_ids: list[int]) -> tuple[list[int], "np.ndarray | None"]:
+    """Return (found_ids, matrix) of latent vectors for the given raw movie_ids.
+
+    Unknown ids (absent from the trainset) are skipped; `found_ids` preserves the
+    input order of the ids that were resolved. Returns ([], None) if the model
+    is not loaded or none of the ids are known. Used by the onboarding seed
+    selector to spread the proposed films across the latent space.
+    """
+    if _ials_model is None:
+        return [], None
+    ts = _ials_model.trainset
+    found_ids: list[int] = []
+    rows: list = []
+    for rid in raw_ids:
+        try:
+            inner = ts.to_inner_iid(rid)
+        except ValueError:
+            continue
+        found_ids.append(int(rid))
+        rows.append(_item_factors[inner])
+    if not rows:
+        return [], None
+    return found_ids, np.vstack(rows)
+
+
 def recommend(user_ratings: dict, n: int = 20) -> list[tuple[int, float]]:
     """Return top-n (movie_id, raw_score) via ALS closed-form folding-in."""
     if _ials_model is None:
