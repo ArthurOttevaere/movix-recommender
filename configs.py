@@ -47,4 +47,4 @@ class EvalConfig:
     # Colonnes ajoutees au rapport avec le suffixe [ns] (negative sampling).
     neg_sampling_metrics = ["hit_rate@5",  "hit_rate@10",  "hit_rate@20",
                             "ndcg@5",      "ndcg@10",      "ndcg@20"]
-    neg_sampling_model_names = {"LatentFactor", "LatentFactorPP", "LatentFactorRanking2", "BPR"}
+    neg_sampling_model_names = {"UserBased_hidden_gems", "UserBased_tuned_cosine_jaccard", "UserBased_tuned_msd"} # "LatentFactor", "LatentFactorPP", "LatentFactorRanking2", "BPR"
