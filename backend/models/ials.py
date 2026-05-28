@@ -125,25 +125,27 @@ def recommend(user_ratings: dict, n: int = 20) -> list[tuple[int, float]]:
 
     # 4. Score all unrated films
     rated_inner = set(inner_ids.tolist())
-    raw_scores = _item_factors @ pu  # (n_items,)
+    raw_scores = _item_factors @ pu  # (n_items,) — relevance (used for ranking)
 
-    candidates_inner = [i for i in range(ts.n_items) if i not in rated_inner]
-    if not candidates_inner:
+    candidates_inner = np.array([i for i in range(ts.n_items) if i not in rated_inner])
+    if candidates_inner.size == 0:
         return []
 
-    # 5. Normalize to [0.5, 5.0] via min-max over candidates
-    candidate_scores = raw_scores[candidates_inner]
-    s_min, s_max = float(candidate_scores.min()), float(candidate_scores.max())
-    if s_max > s_min:
-        normalized = 0.5 + (candidate_scores - s_min) / (s_max - s_min) * 4.5
-    else:
-        normalized = np.full(len(candidates_inner), 2.75)
+    rank_score = raw_scores[candidates_inner]
 
-    candidates = [
-        (int(ts.to_raw_iid(candidates_inner[k])), float(normalized[k]))
-        for k in range(len(candidates_inner))
+    # 5. Taste-match score = cosine(pu, item) ∈ [0, 1] — an ABSOLUTE measure of how
+    #    well a film aligns with the user's taste (independent of the ranking scale),
+    #    surfaced as the green "% match" in the UI. Encoded into [0.5, 5.0] so the
+    #    shared normalize_score() maps it straight back to the match fraction.
+    pu_norm = float(np.linalg.norm(pu)) + 1e-9
+    cand_factors = _item_factors[candidates_inner]
+    cand_norms = np.linalg.norm(cand_factors, axis=1) + 1e-9
+    match = np.clip(rank_score / (cand_norms * pu_norm), 0.0, 1.0)
+    display = 0.5 + match * 4.5
+
+    # 6. Rank by relevance (descending), return top-n with the match score
+    order = np.argsort(-rank_score)[:n]
+    return [
+        (int(ts.to_raw_iid(int(candidates_inner[i]))), float(display[i]))
+        for i in order
     ]
-
-    # 6. Sort descending, return top-n
-    candidates.sort(key=lambda x: -x[1])
-    return candidates[:n]

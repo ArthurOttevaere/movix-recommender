@@ -148,18 +148,20 @@ def recommend(user_ratings: dict, n: int = 20) -> list[tuple[int, float]]:
     pop_penalty = (pool_pop - p_min) / (p_max - p_min) if p_max > p_min else np.zeros(len(pool_pop))
     adjusted    = (1 - BETA) * norm_scores - BETA * pop_penalty
 
-    # 6. Map adjusted scores back to [0.5, 5.0] for API consistency
-    a_min, a_max = float(adjusted.min()), float(adjusted.max())
-    if a_max > a_min:
-        final_scores = 0.5 + (adjusted - a_min) / (a_max - a_min) * 4.5
-    else:
-        final_scores = np.full(len(candidates_inner), 2.75)
+    # 6. Taste-match score = cosine(pu, item) ∈ [0, 1] for the pool. This is what
+    #    the green "% match" shows: how well each film fits the user's taste,
+    #    INDEPENDENT of the novelty re-ranking (a fresh pick can still report its
+    #    true match). Ranking stays by `adjusted` (relevance + novelty); only the
+    #    displayed score is the match. Encoded into [0.5, 5.0] for normalize_score().
+    pu_norm = float(np.linalg.norm(pu)) + 1e-9
+    pool_factors = _item_factors[candidates_inner]
+    pool_norms = np.linalg.norm(pool_factors, axis=1) + 1e-9
+    match = np.clip(raw_scores / (pool_norms * pu_norm), 0.0, 1.0)
+    display = 0.5 + match * 4.5
 
-    candidates = [
-        (int(ts.to_raw_iid(int(candidates_inner[j]))), float(final_scores[j]))
-        for j in range(len(candidates_inner))
+    # 7. Rank by novelty-adjusted score (descending), return top-n with match score
+    order = np.argsort(-adjusted)[:n]
+    return [
+        (int(ts.to_raw_iid(int(candidates_inner[j]))), float(display[j]))
+        for j in order
     ]
-
-    # 7. Sort descending, return top-n
-    candidates.sort(key=lambda x: -x[1])
-    return candidates[:n]

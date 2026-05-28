@@ -158,62 +158,101 @@ def _build_profile_stats(user: UserProfile) -> dict:
 
 # ─── Onboarding ──────────────────────────────────────────────────────────────
 
-ONBOARDING_N    = 40   # nombre de films proposés à l'onboarding
-ONBOARDING_POOL = 600  # vivier de films populaires (donc reconnaissables) où piocher
+# Onboarding : vivier de films reconnaissables PAR époque, puis sélection
+# farthest-first (espace latent iALS) SOUS QUOTAS d'époque → les graines
+# couvrent à la fois la diversité de goût (informatif pour les modèles) ET un
+# mélange d'années réaliste (sinon la popularité = notes cumulées enterre les
+# films récents et le médian des graines retombe vers ~1993).
+ONBOARDING_POOL_PER_ERA = 150   # films les plus notés retenus par époque (reconnaissables)
+ONBOARDING_ERAS = [             # (label, année_min, année_max_exclue, quota)
+    ("Pre-1980", 0,    1980, 4),
+    ("1980s",    1980, 1990, 6),
+    ("1990s",    1990, 2000, 8),
+    ("2000s",    2000, 2010, 11),
+    ("2010s",    2010, 9999, 11),
+]
+ONBOARDING_N = sum(q for *_, q in ONBOARDING_ERAS)  # 40
 
 
-def _select_diverse_seeds(
-    candidates: list[tuple[int, float]],
-    k: int,
-) -> list[tuple[int, float]]:
-    """Sélection « farthest-first » (k-center) dans l'espace latent iALS.
+def _select_onboarding_seeds() -> list[tuple[int, float]]:
+    """Graines d'onboarding équilibrées par époque ET diverses en goût.
 
-    On part d'un vivier de films populaires et on retient k films dont les vecteurs
-    latents sont maximalement dispersés (en direction de goût, distance cosinus).
-    Chaque note d'onboarding renseigne ainsi une région de goût distincte → le
-    vecteur utilisateur (folding-in) est bien mieux résolu pour TOUS les modèles,
-    au lieu de pointer vers la seule zone « blockbuster grand public ».
+    1. Vivier reconnaissable = les `POOL_PER_ERA` films les plus notés de chaque
+       époque (la popularité globale favorisant les vieux films, on l'applique
+       *à l'intérieur* de chaque époque pour faire remonter des films récents).
+    2. Traversée farthest-first (k-center) dans l'espace latent iALS avec un quota
+       par époque : on choisit à chaque pas le film le plus éloigné (direction de
+       goût, distance cosinus) des graines déjà prises, en désactivant une époque
+       dès que son quota est atteint. → dispersion maximale du goût *sous* la
+       contrainte d'un mélange d'années.
 
-    Retourne un sous-ensemble de `candidates` (≤ k). Repli sur [] si les facteurs
-    iALS sont indisponibles (le caller complète alors par popularité).
+    Repli sur [] si les facteurs iALS sont indisponibles (le caller complète alors
+    par popularité).
     """
+    all_pop = utils.popular_movies(20000, exclude_ids=None)  # tout le catalogue, trié par popularité
+
+    # 1. Vivier par époque + table movie_id → index d'époque + quotas
+    candidates: list[tuple[int, float]] = []
+    era_of: dict[int, int] = {}
+    quota: dict[int, int] = {}
+    for ei, (_, lo, hi, q) in enumerate(ONBOARDING_ERAS):
+        quota[ei] = q
+        taken = 0
+        for mid, score in all_pop:
+            y = utils.movie_year(mid)
+            if y is None or not (lo <= y < hi):
+                continue
+            candidates.append((mid, score))
+            era_of[mid] = ei
+            taken += 1
+            if taken >= ONBOARDING_POOL_PER_ERA:
+                break
+
     score_by_id = {mid: score for mid, score in candidates}
     found_ids, X = ials.item_factor_vectors([mid for mid, _ in candidates])
     if X is None:
         return []
-    if len(found_ids) <= k:
-        return [(mid, score_by_id[mid]) for mid in found_ids]
 
-    # Normalisation L2 → la distance reflète la DIRECTION du goût, pas la
-    # magnitude (qui est corrélée à la popularité, déjà bornée par le vivier).
     Xn = X / (np.linalg.norm(X, axis=1, keepdims=True) + 1e-8)
+    eidx = np.array([era_of[mid] for mid in found_ids])
+    scores = np.array([score_by_id[mid] for mid in found_ids])
+    n = len(found_ids)
 
-    # found_ids est en ordre de popularité décroissante → on démarre du plus connu.
-    selected = [0]
-    min_dist = 1.0 - Xn @ Xn[0]   # distance cosinus à la première graine
-    for _ in range(k - 1):
-        nxt = int(np.argmax(min_dist))
-        selected.append(nxt)
+    # 2. Farthest-first sous quotas d'époque
+    avail = np.ones(n, dtype=bool)
+    min_dist = np.full(n, np.inf)
+    filled = {ei: 0 for ei in quota}
+    selected: list[int] = []
+
+    def _take(i: int) -> None:
+        selected.append(i)
+        avail[i] = False
+        e = int(eidx[i])
+        filled[e] += 1
+        if filled[e] >= quota[e]:        # quota atteint → on retire toute l'époque
+            avail[eidx == e] = False
+
+    _take(int(np.argmax(scores)))        # départ : le film le plus connu
+    min_dist = np.minimum(min_dist, 1.0 - Xn @ Xn[selected[0]])
+
+    while len(selected) < ONBOARDING_N and avail.any():
+        nxt = int(np.argmax(np.where(avail, min_dist, -np.inf)))
+        _take(nxt)
         min_dist = np.minimum(min_dist, 1.0 - Xn @ Xn[nxt])
-        min_dist[nxt] = -1.0       # ne jamais re-sélectionner
 
     return [(found_ids[i], score_by_id[found_ids[i]]) for i in selected]
 
 
 @app.get("/onboarding/movies")
 def onboarding_movies():
-    """Retourne 40 films reconnaissables ET couvrant des goûts variés.
-
-    Vivier = films populaires (reconnaissables) ; sélection finale = farthest-first
-    dans l'espace latent iALS pour maximiser l'information apportée par chaque note.
-    """
-    candidates = utils.popular_movies(ONBOARDING_POOL, exclude_ids=None)
-    selected = _select_diverse_seeds(candidates, ONBOARDING_N)
+    """Retourne 40 films reconnaissables, couvrant des goûts variés ET un mélange
+    d'époques (diversité latente iALS sous quotas d'époque)."""
+    selected = _select_onboarding_seeds()
 
     # Repli / complétion par popularité si iALS indisponible ou pas assez de films.
     if len(selected) < ONBOARDING_N:
         seen = {mid for mid, _ in selected}
-        for mid, score in candidates:
+        for mid, score in utils.popular_movies(ONBOARDING_N * 4, exclude_ids=None):
             if mid not in seen:
                 selected.append((mid, score))
                 seen.add(mid)

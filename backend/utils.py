@@ -52,6 +52,14 @@ def _get_genres(movie_id: int) -> list[str]:
     return [g for g in str(raw).split("|") if g]
 
 
+def movie_year(movie_id: int) -> int | None:
+    """Release year parsed from a movie's title, or None if unavailable."""
+    if _movies_df is None or movie_id not in _movies_df.index:
+        return None
+    _, year = parse_title_year(str(_movies_df.loc[movie_id, "title"]))
+    return year
+
+
 def movie_to_dict(
     movie_id: int,
     raw_score: float | None,

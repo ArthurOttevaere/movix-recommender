@@ -4,6 +4,8 @@ const MODEL_LABELS = {
   content_based: 'Content-based · Genome features',
   user_based: 'Collaborative · User KNN',
   svd: 'Latent factor · SVD matrix',
+  ials: 'Latent factor · Implicit ALS (WRMF)',
+  bpr: 'Ranking · BPR-MF + novelty',
   ensemble: 'Ensemble · Diversity boost',
   trending: 'Real-time · Popularity signal',
   history: 'Your watch history',
