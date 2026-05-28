@@ -1,8 +1,6 @@
 # local imports
 from models import *
-
-# 1. On prépare ton modèle "Hidden Gems" optimisé (k=15, min_k=2)
-algo_hidden_gems_base = UserBased_tuned(k=15, min_k=2, sim_options={'name': 'msd', 'min_support': 3})
+from surprise import KNNBaseline, KNNWithMeans
 
 class EvalConfig:
     
@@ -23,10 +21,10 @@ class EvalConfig:
         #("LatentFactor", LatentFactor, {}),
 
         ("UserBased_tuned_cosine_jaccard", UserBased_tuned, {"k": 40, "min_k": 3, "sim_options": {'name': 'cosine_jaccard', 'min_support': 5}}),
-        ("UserBased_tuned_msd", UserBased_tuned, {"k": 40, "min_k": 3, "sim_options": {'name': 'msd', 'min_support': 5}}),
-        ("UserBased_hidden_gems", UserBased_tuned, {"k": 15, "min_k": 2, "sim_options": {'name': 'msd', 'min_support': 3}}),
-        #("UserBased_Filtered_20pct", HiddenGemsFilterWrapper, {"base_algo": algo_hidden_gems_base, "exclude_top_pct": 0.20}),
-        
+        #("UserBased_tuned_msd", UserBased_tuned, {"k": 40, "min_k": 3, "sim_options": {'name': 'msd', 'min_support': 5}}),
+        ("UserBased_hidden_new", UserBased_tuned, {"k": 40, "min_k": 2, "sim_options": {'name': 'pearson_baseline', 'min_support': 3}}),
+        ("UserBased_Pearson_Natif", KNNBaseline, {"k": 40, "min_k": 2, "sim_options": {'name': 'pearson_baseline', 'user_based': True, 'min_support': 3}}),
+        #("UserBased_Filtered_20pct", HiddenGemsFilterWrapper, {"base_algo": algo_hidden_gems_base, "exclude_top_pct": 0.20}),        
     ]
 
     # Evaluation metrics — alignées avec la littérature RecSys (NCF, SASRec, LightGCN, Vargas & Castells 2011)
@@ -47,4 +45,5 @@ class EvalConfig:
     # Colonnes ajoutees au rapport avec le suffixe [ns] (negative sampling).
     neg_sampling_metrics = ["hit_rate@5",  "hit_rate@10",  "hit_rate@20",
                             "ndcg@5",      "ndcg@10",      "ndcg@20"]
-    neg_sampling_model_names = {"UserBased_hidden_gems", "UserBased_tuned_cosine_jaccard", "UserBased_tuned_msd"} # "LatentFactor", "LatentFactorPP", "LatentFactorRanking2", "BPR"
+    neg_sampling_model_names = {"UserBased_Pearson_Natif", "UserBased_tuned_cosine_jaccard", "UserBased_hidden_new"} # "LatentFactor", "LatentFactorPP", "LatentFactorRanking2", "BPR"
+    
