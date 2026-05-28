@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Literal
 
 import numpy as np
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -35,6 +35,21 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Cinematch API", lifespan=lifespan)
+
+
+# ─── Anti-cache (dev) ────────────────────────────────────────────────────────
+# StaticFiles n'envoie aucun Cache-Control : le navigateur applique alors un cache
+# heuristique et ressert un vieux HTML/JS sans revalider. Après un redémarrage du
+# serveur (ou une modif de code), l'ancien JS en cache reste chargé → page qui
+# "charge à l'infini" tant qu'on n'a pas vidé le cache à la main. On force donc le
+# navigateur à toujours récupérer la version fraîche.
+@app.middleware("http")
+async def no_cache(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 # ─── Helpers internes ────────────────────────────────────────────────────────
