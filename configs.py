@@ -40,3 +40,11 @@ class EvalConfig:
 
     # Loo parameters
     top_n_value = 40  # -- configure the numer of recommendations (> 1) --
+
+    # Negative-sampling LOO (protocole He et al. 2017 NCF, WWW'17)
+    # 1 item positif + 99 negatifs aleatoires = 100 candidats par utilisateur.
+    # Seuls les modeles dans neg_sampling_model_names sont evalues (plus rapide).
+    # Colonnes ajoutees au rapport avec le suffixe [ns] (negative sampling).
+    neg_sampling_metrics = ["hit_rate@5",  "hit_rate@10",  "hit_rate@20",
+                            "ndcg@5",      "ndcg@10",      "ndcg@20"]
+    neg_sampling_model_names = {"LatentFactor", "LatentFactorPP", "LatentFactorRanking2", "BPR"}
