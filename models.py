@@ -109,6 +109,55 @@ class LatentFactorPP(SVDpp):
     def __init__(self, random_state=1):
         SVDpp.__init__(self, n_factors=20, n_epochs=20, lr_all=0.007, reg_all=0.02, random_state=random_state)
 
+# SVD ranking v2 — hyperparamètres issus du GridSearchCV orienté classement (latent_factor.ipynb §4c)
+# n_factors=20 + reg_all=0.01 : meilleur compromis RMSE(0.828)/coverage — reg divisé par 2 vs v1.
+class LatentFactorRanking2(SVD):
+    def __init__(self, random_state=1):
+        SVD.__init__(self, n_factors=20, n_epochs=30, lr_all=0.005, reg_all=0.01, random_state=random_state)
+
+
+# BPR-MF — Bayesian Personalized Ranking with Matrix Factorisation
+# Rendle et al. (2009) "BPR: Bayesian Personalized Ranking from Implicit Feedback", UAI '09.
+# Optimises pairwise ranking loss: rated items ranked above unrated items.
+# RMSE/MAE are not meaningful for this model — only LOO and full-catalogue metrics matter.
+class ModelBPR(AlgoBase):
+    def __init__(self, factors=64, learning_rate=0.01, regularization=0.01, iterations=100, random_state=42):
+        AlgoBase.__init__(self)
+        self.factors = factors
+        self.learning_rate = learning_rate
+        self.regularization = regularization
+        self.iterations = iterations
+        self.random_state = random_state
+        self._bpr = None
+
+    def fit(self, trainset):
+        AlgoBase.fit(self, trainset)
+        from implicit.bpr import BayesianPersonalizedRanking
+        from scipy.sparse import csr_matrix
+        rows, cols, vals = [], [], []
+        for u in range(trainset.n_users):
+            for iid, _ in trainset.ur[u]:
+                rows.append(u)
+                cols.append(iid)
+                vals.append(1.0)
+        user_items = csr_matrix((vals, (rows, cols)), shape=(trainset.n_users, trainset.n_items))
+        self._bpr = BayesianPersonalizedRanking(
+            factors=self.factors,
+            learning_rate=self.learning_rate,
+            regularization=self.regularization,
+            iterations=self.iterations,
+            random_state=self.random_state,
+        )
+        self._bpr.fit(user_items)
+        return self
+
+    def estimate(self, u, i):
+        if self._bpr is None:
+            raise PredictionImpossible("Model not fitted.")
+        if not (self.trainset.knows_user(u) and self.trainset.knows_item(i)):
+            raise PredictionImpossible("User or item unknown.")
+        return float(np.dot(self._bpr.user_factors[u], self._bpr.item_factors[i]))
+
 # KNN with means, using msd baseline similarity measure and user-based collaborative filtering
 class ModelBaseline5(KNNWithMeans):
     def __init__(self, random_state=1):

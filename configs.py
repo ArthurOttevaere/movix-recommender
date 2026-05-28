@@ -17,9 +17,11 @@ class EvalConfig:
         # ("LinearRegression_Intercept_True", ContentBased, {"features_method": "title_length", "regressor_method": "linear_regression_true"}),
         # ("ContentBased_ridge_cv", ContentBased, {"features_method": "all_content_tmdb_tags2000", "regressor_method": "ridge_cv"}),
         # ("ContentBased_ridge", ContentBased, {"features_method": "all_content_tmdb_tags2000", "regressor_method": "ridge"}),
-        ("LatentFactor", LatentFactor, {}),
-        ("LatentFactorPP", LatentFactorPP, {}),
-        
+        # ("LatentFactor", LatentFactor, {}),          # résultats déjà disponibles
+        # ("LatentFactorPP", LatentFactorPP, {}),       # résultats déjà disponibles
+        # ("LatentFactorRanking2", LatentFactorRanking2, {}),  # résultats déjà disponibles
+        # ("BPR", ModelBPR, {"factors": 64, "learning_rate": 0.01, "regularization": 0.01, "iterations": 100}),  # résultats déjà disponibles
+
     ]
 
     # Evaluation metrics — alignées avec la littérature RecSys (NCF, SASRec, LightGCN, Vargas & Castells 2011)
@@ -40,5 +42,5 @@ class EvalConfig:
     # Colonnes ajoutees au rapport avec le suffixe [ns] (negative sampling).
     neg_sampling_metrics = ["hit_rate@5",  "hit_rate@10",  "hit_rate@20",
                             "ndcg@5",      "ndcg@10",      "ndcg@20"]
-    neg_sampling_model_names = {"LatentFactor", "LatentFactorPP"}
+    neg_sampling_model_names = {"LatentFactor", "LatentFactorPP", "LatentFactorRanking2", "BPR"}
 
