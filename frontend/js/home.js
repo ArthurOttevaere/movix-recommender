@@ -31,6 +31,25 @@ const DISCOVER_GENRES = [
   { id: 37, name: 'Western' },
 ];
 
+// Home page rows after the hero, in display order.
+// Each is backed by one of the 4 backend models (matched by `model`).
+const HOME_CAROUSELS = [
+  { model: 'ials',          label: 'Top Picks For You' },
+  { model: 'content_based', label: 'Because You Like' },
+  { model: 'user_based',    label: 'Viewers Like You Also Watched' },
+  { model: 'bpr',           label: 'Discover Something New' },
+];
+
+// Pick the model-backed carousels we want to display, in the right order,
+// and apply the canonical label for each.
+function selectHomeCarousels(carousels) {
+  const byModel = {};
+  carousels.forEach(c => { byModel[c.model] = c; });
+  return HOME_CAROUSELS
+    .filter(spec => byModel[spec.model])
+    .map(spec => ({ ...byModel[spec.model], label: spec.label }));
+}
+
 let heroMovies = [];
 let heroIndex = 0;
 let heroTimer = null;
@@ -63,11 +82,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   allMoviesPool = [data.hero, ...data.carousels.flatMap(c => c.movies)].filter(Boolean);
   navigation.setMoviePool(allMoviesPool);
 
-  patchRecommendationLabels(data.carousels);
-
   const recCarousels = data.carousels.filter(c => !c.model.startsWith('genre:'));
   buildHero(data, recCarousels);
-  await renderHomeCarousels(recCarousels, allMoviesPool);
+  await renderHomeCarousels(selectHomeCarousels(recCarousels), allMoviesPool);
 });
 
 function updateStreak() {
@@ -86,19 +103,6 @@ function updateStreak() {
   }
   pstore.set('streak_days', String(streak));
   pstore.set('last_active', today);
-}
-
-// ─── Dynamic labels ───────────────────────────────────────────────────────────
-function patchRecommendationLabels(carousels) {
-  const ratings = JSON.parse(pstore.get('ratings') || '{}');
-  if (!Object.keys(ratings).length) return;
-
-  const [topId] = Object.entries(ratings).sort((a, b) => b[1] - a[1])[0];
-  const topMovie = allMoviesPool.find(m => m.movie_id === parseInt(topId));
-  if (!topMovie) return;
-
-  const c = carousels.find(c => c.model === 'content_based');
-  if (c) c.label = `Because You Watched ${topMovie.title}`;
 }
 
 // ─── Hero ─────────────────────────────────────────────────────────────────────
@@ -295,42 +299,23 @@ async function renderHomeCarousels(carousels, allMovies) {
   const container = document.getElementById('carousels-container');
   container.innerHTML = '';
 
-  const cwCarousel = buildContinueWatching(allMovies);
-
-  if (cwCarousel) {
-    container.appendChild(createCarouselSection(cwCarousel));
-  }
-
-  // ── Add live TMDB carousels: Trending (Top 8) ──────────────────────────────
+  // ── Carousel 1: live TMDB Trending (Top 8, ranked) — unchanged ─────────────
   const trendingSection = createCarouselSection({
     id: 'tmdb-trending', label: 'Top 8 Today', model: 'trending', showRank: true
   });
   container.appendChild(trendingSection);
 
+  // ── Carousels 2–5: model-backed recommendation rows ────────────────────────
   for (const c of carousels) {
     container.appendChild(createCarouselSection(c));
   }
 
-  // ── Add live TMDB carousels: Top Rated + Hidden Gems ───────────────────────
-  const topRatedSection = createCarouselSection({
-    id: 'tmdb-top-rated', label: 'Top Ranked All Time', model: 'top_rated'
-  });
-  container.appendChild(topRatedSection);
-
-  const hiddenGemsSection = createCarouselSection({
-    id: 'tmdb-hidden-gems', label: 'Hidden Gems for You', model: 'hidden_gems'
-  });
-  container.appendChild(hiddenGemsSection);
-
   if (typeof lucide !== 'undefined') lucide.createIcons();
 
-  if (cwCarousel) await populateCarousel(cwCarousel);
   for (const c of carousels) await populateCarousel(c);
 
-  // ── Populate live carousels (parallel, no await blocking) ──────────────────
+  // ── Populate the live TMDB carousel (parallel, no await blocking) ──────────
   loadTrendingCarousel();
-  loadTopRatedCarousel();
-  loadHiddenGemsCarousel();
 }
 
 async function loadTrendingCarousel() {
@@ -341,57 +326,6 @@ async function loadTrendingCarousel() {
     if (typeof lucide !== 'undefined') lucide.createIcons();
   } catch (e) {
     const track = document.getElementById('track-tmdb-trending');
-    if (track) track.innerHTML = '<p class="empty-state" style="padding:20px">Could not load.</p>';
-  }
-}
-
-async function loadTopRatedCarousel() {
-  try {
-    const results = await TMDB.topRated(1);
-    const movies = results.slice(0, 20).map(r => TMDB.parseLite(r));
-    populateCarouselWithPosters({ id: 'tmdb-top-rated', movies });
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-  } catch (e) {
-    const track = document.getElementById('track-tmdb-top-rated');
-    if (track) track.innerHTML = '<p class="empty-state" style="padding:20px">Could not load.</p>';
-  }
-}
-
-async function loadHiddenGemsCarousel() {
-  try {
-    // High-rated but moderate vote count → niche-but-loved films
-    // Bias toward user's favorite genres if we can infer them
-    const ratings = JSON.parse(pstore.get('ratings') || '{}');
-    const ratedIds = Object.keys(ratings).map(Number);
-    let favGenreIds = [];
-    if (ratedIds.length) {
-      const tmdbIds = ratedIds
-        .map(id => allMoviesPool.find(m => m.movie_id === id)?.tmdb_id)
-        .filter(Boolean);
-      const details = await Promise.allSettled(tmdbIds.slice(0, 12).map(id => getMovieDetails(id)));
-      const counts = {};
-      details.forEach(r => {
-        if (r.status !== 'fulfilled') return;
-        (r.value.genres || []).forEach(g => {
-          // Map name back to TMDB ID
-          const id = Object.entries(TMDB_GENRE_MAP).find(([, name]) => name === g)?.[0];
-          if (id) counts[id] = (counts[id] || 0) + 1;
-        });
-      });
-      favGenreIds = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(e => parseInt(e[0]));
-    }
-
-    const results = await TMDB.discoverByGenre({
-      genres: favGenreIds,
-      sort_by: 'vote_average.desc',
-      vote_count_gte: 200,
-      vote_count_lte: 2500,
-    });
-    const movies = results.slice(0, 20).map(r => TMDB.parseLite(r));
-    populateCarouselWithPosters({ id: 'tmdb-hidden-gems', movies });
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-  } catch (e) {
-    const track = document.getElementById('track-tmdb-hidden-gems');
     if (track) track.innerHTML = '<p class="empty-state" style="padding:20px">Could not load.</p>';
   }
 }
@@ -408,30 +342,15 @@ async function _loadDiscoverTopRated() {
   }
 }
 
-function buildContinueWatching(allMovies) {
-  const ratings = JSON.parse(pstore.get('ratings') || '{}');
-  const ratedIds = Object.keys(ratings).slice(-6).map(Number).reverse();
-  if (ratedIds.length < 2) return null;
-
-  const movies = ratedIds
-    .map(id => allMovies.find(m => m.movie_id === id))
-    .filter(Boolean)
-    .map(m => ({ ...m, progress: Math.floor(Math.random() * 55) + 20 }));
-
-  if (!movies.length) return null;
-  return { id: 'continue_watching', label: 'Continue Watching', model: 'history', movies };
-}
-
 async function refreshCarousels() {
   const token = auth.getToken();
   const data = await api.getRecommendations(token);
   const allMovies = [data.hero, ...data.carousels.flatMap(c => c.movies)].filter(Boolean);
-  patchRecommendationLabels(data.carousels);
   const recCarousels = data.carousels.filter(c => !c.model.startsWith('genre:'));
   const container = document.getElementById('carousels-container');
   container.style.transition = 'opacity 0.3s';
   container.style.opacity = '0.5';
-  await renderHomeCarousels(recCarousels, allMovies);
+  await renderHomeCarousels(selectHomeCarousels(recCarousels), allMovies);
   container.style.opacity = '1';
   setTimeout(() => { container.style.transition = ''; }, 350);
 }
