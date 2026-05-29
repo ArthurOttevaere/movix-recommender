@@ -10,26 +10,35 @@ const eventBus = {
   }
 };
 
+// Genres for the Discover dropdown.
+//   tmdb : TMDB genre id (for the live "Top 8 in <genre>" carousel)
+//   ml   : matching MovieLens genre name(s) used to filter the model carousels
+//          (our model movies carry MovieLens genres, e.g. "Sci-Fi", "Children")
 const DISCOVER_GENRES = [
-  { id: 28, name: 'Action' },
-  { id: 12, name: 'Adventure' },
-  { id: 16, name: 'Animation' },
-  { id: -1, name: 'Baby & Toddler', _baby: true },
-  { id: 35, name: 'Comedy' },
-  { id: 80, name: 'Crime' },
-  { id: 99, name: 'Documentary' },
-  { id: 18, name: 'Drama' },
-  { id: 10751, name: 'Family' },
-  { id: 14, name: 'Fantasy' },
-  { id: 36, name: 'History' },
-  { id: 27, name: 'Horror' },
-  { id: 9648, name: 'Mystery' },
-  { id: 10749, name: 'Romance' },
-  { id: 878, name: 'Science Fiction' },
-  { id: 53, name: 'Thriller' },
-  { id: 10752, name: 'War' },
-  { id: 37, name: 'Western' },
+  { name: 'Action',      tmdb: 28,    ml: ['Action'] },
+  { name: 'Adventure',   tmdb: 12,    ml: ['Adventure'] },
+  { name: 'Animation',   tmdb: 16,    ml: ['Animation'] },
+  { name: 'Children',    tmdb: 10751, ml: ['Children'] },
+  { name: 'Comedy',      tmdb: 35,    ml: ['Comedy'] },
+  { name: 'Crime',       tmdb: 80,    ml: ['Crime'] },
+  { name: 'Documentary', tmdb: 99,    ml: ['Documentary'] },
+  { name: 'Drama',       tmdb: 18,    ml: ['Drama'] },
+  { name: 'Fantasy',     tmdb: 14,    ml: ['Fantasy'] },
+  { name: 'Horror',      tmdb: 27,    ml: ['Horror'] },
+  { name: 'Musical',     tmdb: 10402, ml: ['Musical'] },
+  { name: 'Mystery',     tmdb: 9648,  ml: ['Mystery'] },
+  { name: 'Romance',     tmdb: 10749, ml: ['Romance'] },
+  { name: 'Sci-Fi',      tmdb: 878,   ml: ['Sci-Fi'] },
+  { name: 'Thriller',    tmdb: 53,    ml: ['Thriller'] },
+  { name: 'War',         tmdb: 10752, ml: ['War'] },
+  { name: 'Western',     tmdb: 37,    ml: ['Western'] },
 ];
+
+// A model movie (carrying MovieLens genres) matches a Discover genre?
+function movieMatchesGenre(movie, genre) {
+  const gs = movie.genres || [];
+  return genre.ml.some(name => gs.includes(name));
+}
 
 // Home page rows after the hero, in display order.
 // Each is backed by one of the 4 backend models (matched by `model`).
@@ -54,9 +63,10 @@ let heroMovies = [];
 let heroIndex = 0;
 let heroTimer = null;
 let allMoviesPool = [];
+let homeModelCarousels = [];       // the 4 model carousels, FULL movie lists (for genre filtering in Discover)
 let discoverLoaded = false;
 let surpriseInit = false;
-let selectedDiscoverGenre = null;  // null = "For you" (default)
+let selectedDiscoverGenre = DISCOVER_GENRES[0].tmdb;  // default = first genre
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -83,8 +93,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   navigation.setMoviePool(allMoviesPool);
 
   const recCarousels = data.carousels.filter(c => !c.model.startsWith('genre:'));
+  homeModelCarousels = selectHomeCarousels(recCarousels);   // full lists (kept for Discover genre filtering)
   buildHero(data, recCarousels);
-  await renderHomeCarousels(selectHomeCarousels(recCarousels), allMoviesPool);
+  // Home shows up to 20 per row; Discover filters the full lists by genre.
+  await renderHomeCarousels(homeModelCarousels.map(c => ({ ...c, movies: c.movies.slice(0, 20) })), allMoviesPool);
 });
 
 function updateStreak() {
@@ -330,27 +342,16 @@ async function loadTrendingCarousel() {
   }
 }
 
-async function _loadDiscoverTopRated() {
-  try {
-    const results = await TMDB.topRated(1);
-    const movies = results.slice(0, 20).map(r => TMDB.parseLite(r));
-    populateCarouselWithPosters({ id: 'disc-foryou-top', movies });
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-  } catch (e) {
-    const track = document.getElementById('track-disc-foryou-top');
-    if (track) track.innerHTML = '<p class="empty-state" style="padding:20px">Could not load.</p>';
-  }
-}
-
 async function refreshCarousels() {
   const token = auth.getToken();
   const data = await api.getRecommendations(token);
   const allMovies = [data.hero, ...data.carousels.flatMap(c => c.movies)].filter(Boolean);
   const recCarousels = data.carousels.filter(c => !c.model.startsWith('genre:'));
+  homeModelCarousels = selectHomeCarousels(recCarousels);
   const container = document.getElementById('carousels-container');
   container.style.transition = 'opacity 0.3s';
   container.style.opacity = '0.5';
-  await renderHomeCarousels(selectHomeCarousels(recCarousels), allMovies);
+  await renderHomeCarousels(homeModelCarousels.map(c => ({ ...c, movies: c.movies.slice(0, 20) })), allMovies);
   container.style.opacity = '1';
   setTimeout(() => { container.style.transition = ''; }, 350);
 }
@@ -364,13 +365,9 @@ async function renderDiscoverView() {
   if (!dropdown || !trigger || !panel || !labelEl) return;
 
   if (!discoverLoaded) {
-    // Build options: "For you" first, then all genres alphabetical
-    const options = [
-      { value: 'all', label: 'For you' },
-      ...DISCOVER_GENRES.map(g => ({ value: String(g.id), label: g.name }))
-    ];
-    panel.innerHTML = options.map(o => `
-      <li class="genre-dropdown-item" role="option" data-value="${o.value}">${o.label}</li>
+    // Build options: one per genre (no "For you")
+    panel.innerHTML = DISCOVER_GENRES.map(g => `
+      <li class="genre-dropdown-item" role="option" data-value="${g.tmdb}">${g.name}</li>
     `).join('');
 
     const closePanel = () => {
@@ -392,7 +389,7 @@ async function renderDiscoverView() {
         const value = item.dataset.value;
         panel.querySelectorAll('.genre-dropdown-item').forEach(it => it.classList.toggle('selected', it === item));
         labelEl.textContent = item.textContent.trim();
-        selectedDiscoverGenre = (value === 'all') ? null : parseInt(value);
+        selectedDiscoverGenre = parseInt(value);
         sessionStorage.setItem('discover_genre', value);
         closePanel();
         renderDiscoverContent();
@@ -408,17 +405,15 @@ async function renderDiscoverView() {
       if (e.key === 'Escape') closePanel();
     });
 
-    // Restore previous selection if any
+    // Restore previous selection, else default to the first genre
     const saved = sessionStorage.getItem('discover_genre');
-    if (saved) {
-      const item = panel.querySelector(`.genre-dropdown-item[data-value="${saved}"]`);
-      if (item) {
-        panel.querySelectorAll('.genre-dropdown-item').forEach(it => it.classList.toggle('selected', it === item));
-        labelEl.textContent = item.textContent.trim();
-        selectedDiscoverGenre = (saved === 'all') ? null : parseInt(saved);
-      }
-    } else {
-      panel.querySelector('.genre-dropdown-item[data-value="all"]')?.classList.add('selected');
+    const startItem =
+      (saved && panel.querySelector(`.genre-dropdown-item[data-value="${saved}"]`))
+      || panel.querySelector('.genre-dropdown-item');
+    if (startItem) {
+      startItem.classList.add('selected');
+      labelEl.textContent = startItem.textContent.trim();
+      selectedDiscoverGenre = parseInt(startItem.dataset.value);
     }
 
     discoverLoaded = true;
@@ -432,99 +427,48 @@ function renderDiscoverContent() {
   if (!container) return;
   container.innerHTML = '';
 
-  if (selectedDiscoverGenre == null) {
-    // Default "For you" — recommendation carousels (Picked for you, Top Rated, Hidden Gems)
-    renderForYouCarousels(container);
-    return;
-  }
-
-  // Selected genre — show multiple curated rows for that genre
-  const genre = DISCOVER_GENRES.find(g => g.id === selectedDiscoverGenre);
+  const genre = DISCOVER_GENRES.find(g => g.tmdb === selectedDiscoverGenre);
   if (!genre) return;
 
-  // Special case: Baby & Toddler uses Animation + Family genre IDs
-  if (genre._baby) {
-    const babyGenres = [16, 10751]; // Animation + Family
-    const rows = [
-      { id: 'disc-baby-pop', label: 'Popular for Little Ones', sort_by: 'popularity.desc', vote_count_gte: 50 },
-      { id: 'disc-baby-top', label: 'Best Rated Baby & Toddler Films', sort_by: 'vote_average.desc', vote_count_gte: 100 },
-      { id: 'disc-baby-new', label: 'New Baby & Toddler Films', sort_by: 'primary_release_date.desc', year_gte: new Date().getFullYear() - 3, vote_count_gte: 20 },
-    ];
-    for (const r of rows) {
-      container.appendChild(createCarouselSection({ id: r.id, label: r.label, model: 'genre:Animation' }));
-    }
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-    rows.forEach(r => {
-      TMDB.discoverByGenre({ genres: babyGenres, sort_by: r.sort_by, vote_count_gte: r.vote_count_gte, year_gte: r.year_gte })
-        .then(results => {
-          const movies = results.slice(0, 20).map(x => TMDB.parseLite(x));
-          populateCarouselWithPosters({ id: r.id, movies });
-          if (typeof lucide !== 'undefined') lucide.createIcons();
-        })
-        .catch(() => {
-          const track = document.getElementById(`track-${r.id}`);
-          if (track) track.innerHTML = `<p class="empty-state" style="padding:20px">Failed to load.</p>`;
-        });
-    });
-    return;
-  }
+  // Same 5 rows as the home page, but adapted to the selected genre.
 
-  const rows = [
-    { id: `disc-pop-${genre.id}`, label: `Popular in ${genre.name}`, sort_by: 'popularity.desc' },
-    { id: `disc-top-${genre.id}`, label: `Top Rated ${genre.name}`, sort_by: 'vote_average.desc', vote_count_gte: 500 },
-    { id: `disc-new-${genre.id}`, label: `Recent ${genre.name} Films`, sort_by: 'primary_release_date.desc', year_gte: new Date().getFullYear() - 3 },
-  ];
+  // 1. Live TMDB "Top 8 in <genre>" (ranked) — mirrors the home "Top 8 Today".
+  const trendingId = `disc-trending-${genre.tmdb}`;
+  container.appendChild(createCarouselSection({
+    id: trendingId, label: `Top 8 in ${genre.name}`, model: 'trending', showRank: true
+  }));
 
-  for (const r of rows) {
-    container.appendChild(createCarouselSection({ id: r.id, label: r.label, model: `genre:${genre.name}` }));
-  }
+  // 2–5. The four model carousels, filtered to this genre (identical display).
+  const modelCarousels = homeModelCarousels.map(c => ({
+    ...c,
+    id: `disc-${c.model}-${genre.tmdb}`,
+    movies: c.movies.filter(m => movieMatchesGenre(m, genre)).slice(0, 20),
+  }));
+  for (const c of modelCarousels) container.appendChild(createCarouselSection(c));
+
   if (typeof lucide !== 'undefined') lucide.createIcons();
 
-  rows.forEach(r => {
-    TMDB.discoverByGenre({ genres: [genre.id], sort_by: r.sort_by, vote_count_gte: r.vote_count_gte, year_gte: r.year_gte })
-      .then(results => {
-        const movies = results.slice(0, 20).map(x => TMDB.parseLite(x));
-        populateCarouselWithPosters({ id: r.id, movies });
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-      })
-      .catch(() => {
-        const track = document.getElementById(`track-${r.id}`);
-        if (track) track.innerHTML = `<p class="empty-state" style="padding:20px">Failed to load.</p>`;
-      });
-  });
-}
-
-
-function renderForYouCarousels(container) {
-  // 1. Picked for you — reuse the existing recommendation pool
-  const picked = {
-    id: 'disc-foryou-picked', label: 'Picked for You', model: 'ensemble',
-    movies: allMoviesPool.slice(0, 20)
-  };
-  // 2. Top rated (live TMDB)
-  const topRatedSection = createCarouselSection({ id: 'disc-foryou-top', label: 'Top Rated of All Time', model: 'top_rated' });
-  // 3. Hidden gems (live TMDB)
-  const gemsSection = createCarouselSection({ id: 'disc-foryou-gems', label: 'Hidden Gems for You', model: 'hidden_gems' });
-
-  if (picked.movies.length) {
-    container.appendChild(createCarouselSection(picked));
-  }
-  container.appendChild(topRatedSection);
-  container.appendChild(gemsSection);
-  if (typeof lucide !== 'undefined') lucide.createIcons();
-
-  if (picked.movies.length) populateCarousel(picked);
-
-  // Top rated
-  _loadDiscoverTopRated();
-
-  // Hidden gems
-  TMDB.discoverByGenre({ sort_by: 'vote_average.desc', vote_count_gte: 200, vote_count_lte: 2500 })
+  // Populate row 1 from TMDB.
+  TMDB.discoverByGenre({ genres: [genre.tmdb], sort_by: 'popularity.desc' })
     .then(results => {
-      const movies = results.slice(0, 20).map(r => TMDB.parseLite(r));
-      populateCarouselWithPosters({ id: 'disc-foryou-gems', movies });
+      const movies = results.slice(0, 8).map(r => TMDB.parseLite(r));
+      populateCarouselWithPosters({ id: trendingId, movies, showRank: true });
       if (typeof lucide !== 'undefined') lucide.createIcons();
-    }).catch(() => { });
+    })
+    .catch(() => {
+      const track = document.getElementById(`track-${trendingId}`);
+      if (track) track.innerHTML = '<p class="empty-state" style="padding:20px">Could not load.</p>';
+    });
+
+  // Populate rows 2–5 from the genre-filtered model recommendations.
+  for (const c of modelCarousels) {
+    if (c.movies.length) {
+      populateCarousel(c);
+    } else {
+      const track = document.getElementById(`track-${c.id}`);
+      if (track) track.innerHTML = `<p class="empty-state" style="padding:20px">No ${genre.name} picks yet — rate more films.</p>`;
+    }
+  }
 }
 
 // ─── Surprise Me view ────────────────────────────────────────────────────────

@@ -297,7 +297,9 @@ async def get_recommendations(token: str):
     user = _require_user(token)
     ratings = user.ratings
     rated_ids = set(ratings.keys())
-    N = 25
+    # N is generous so the Discover page can filter each model's picks by genre
+    # and still fill a row; the home page slices each row to ~20 client-side.
+    N = 100
 
     loop = asyncio.get_event_loop()
     results = await asyncio.gather(
@@ -348,7 +350,7 @@ async def get_recommendations(token: str):
                 "label": "Recommandé pour vous",
                 "model": "content_based",
                 "explanation": "Based on your taste profile",
-                "movies": _pairs_to_movies(content_recs[1:], ratings, user.watchlist, 20),
+                "movies": _pairs_to_movies(content_recs[1:], ratings, user.watchlist, N),
             },
             {
                 "id": "latent_factor",
@@ -362,21 +364,21 @@ async def get_recommendations(token: str):
                 "label": "Viewers Like You Also Watched",
                 "model": "user_based",
                 "explanation": "Users with similar taste profiles",
-                "movies": _pairs_to_movies(ub_recs, ratings, user.watchlist, 20),
+                "movies": _pairs_to_movies(ub_recs, ratings, user.watchlist, N),
             },
             {
                 "id": "top_picks",
                 "label": "Top Picks For You",
                 "model": "ials",
                 "explanation": "Confidence-weighted implicit ALS",
-                "movies": _pairs_to_movies(ials_recs, ratings, user.watchlist, 20),
+                "movies": _pairs_to_movies(ials_recs, ratings, user.watchlist, N),
             },
             {
                 "id": "discover_new",
                 "label": "Discover Something New",
                 "model": "bpr",
                 "explanation": "Ranking-based pairwise model",
-                "movies": _pairs_to_movies(bpr_recs, ratings, user.watchlist, 20),
+                "movies": _pairs_to_movies(bpr_recs, ratings, user.watchlist, N),
             },
             {
                 "id": "discovery",
