@@ -50,6 +50,39 @@ def load() -> None:
     print(f"[content] {len(_content_features)} films chargés.")
 
 
+def similar_items(movie_id: int, n: int = 12) -> list[tuple[int, float]]:
+    """Films les plus proches de `movie_id` dans l'espace de features content-based.
+
+    Similarité cosinus entre le vecteur de features du film et tous les autres
+    (les features content = genome/genres, ≥ 0 → cosinus dans [0, 1]). Sert la
+    section « More Like This » du modal. Score encodé en [0.5, 5.0] pour que le
+    normalize_score de l'API le remappe en % de match, comme les autres modèles.
+    """
+    if _content_features is None or n <= 0:
+        return []
+    mid = int(movie_id)
+    if mid not in _content_features.index:
+        return []
+
+    X = _content_features.values
+    idx = _content_features.index.get_loc(mid)
+    target = X[idx]
+    norms = np.linalg.norm(X, axis=1)
+    denom = norms * (np.linalg.norm(target) + 1e-9) + 1e-9
+    sims = (X @ target) / denom
+
+    order = np.argsort(-sims)
+    out: list[tuple[int, float]] = []
+    for j in order:
+        if j == idx:
+            continue
+        match = float(np.clip(sims[j], 0.0, 1.0))
+        out.append((int(_content_features.index[j]), round(0.5 + match * 4.5, 4)))
+        if len(out) >= n:
+            break
+    return out
+
+
 def recommend(user_ratings: dict, n: int = 20) -> list[tuple[int, float]]:
     """Retourne top-n (movie_id, raw_score) pour un nouvel utilisateur."""
 

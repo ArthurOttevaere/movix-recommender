@@ -187,6 +187,9 @@ ONBOARDING_ERAS = [             # (label, année_min, année_max_exclue, quota)
     ("2010s",    2010, 9999, 11),
 ]
 ONBOARDING_N = sum(q for *_, q in ONBOARDING_ERAS)  # 40
+ONBOARDING_BRANCH = 6           # à chaque pas, on tire au hasard parmi les N films les
+                                # plus éloignés → l'onboarding varie d'une fois à l'autre
+                                # sans sacrifier la dispersion (donc reste optimal)
 
 
 def _select_onboarding_seeds() -> list[tuple[int, float]]:
@@ -233,7 +236,13 @@ def _select_onboarding_seeds() -> list[tuple[int, float]]:
     scores = np.array([score_by_id[mid] for mid in found_ids])
     n = len(found_ids)
 
-    # 2. Farthest-first sous quotas d'époque
+    # 2. Farthest-first RANDOMISÉ sous quotas d'époque.
+    #    Randomisation (rng sans graine → varie à chaque appel) : départ tiré parmi
+    #    les films les plus populaires, puis à chaque pas on tire au hasard parmi
+    #    les ONBOARDING_BRANCH films les plus éloignés des graines déjà prises. La
+    #    dispersion reste donc élevée (on choisit toujours parmi les plus éloignés)
+    #    mais la sélection diffère d'une session à l'autre.
+    rng = np.random.default_rng()
     avail = np.ones(n, dtype=bool)
     min_dist = np.full(n, np.inf)
     filled = {ei: 0 for ei in quota}
@@ -247,11 +256,16 @@ def _select_onboarding_seeds() -> list[tuple[int, float]]:
         if filled[e] >= quota[e]:        # quota atteint → on retire toute l'époque
             avail[eidx == e] = False
 
-    _take(int(np.argmax(scores)))        # départ : le film le plus connu
-    min_dist = np.minimum(min_dist, 1.0 - Xn @ Xn[selected[0]])
+    # Départ : au hasard parmi les ~15 candidats les plus populaires (reconnaissables)
+    pop_order = np.argsort(-scores)
+    start = int(rng.choice(pop_order[:min(15, n)]))
+    _take(start)
+    min_dist = np.minimum(min_dist, 1.0 - Xn @ Xn[start])
 
     while len(selected) < ONBOARDING_N and avail.any():
-        nxt = int(np.argmax(np.where(avail, min_dist, -np.inf)))
+        avail_idx = np.where(avail)[0]
+        farthest = avail_idx[np.argsort(-min_dist[avail_idx])[:ONBOARDING_BRANCH]]
+        nxt = int(rng.choice(farthest))
         _take(nxt)
         min_dist = np.minimum(min_dist, 1.0 - Xn @ Xn[nxt])
 
@@ -390,6 +404,15 @@ async def get_recommendations(token: str):
             *genre_carousels,
         ],
     }
+
+
+# ─── Films similaires (More Like This) ───────────────────────────────────────
+
+@app.get("/similar/{movie_id}")
+def similar_movies(movie_id: int):
+    """Films proches de `movie_id` selon le modèle content-based (item-item)."""
+    pairs = content.similar_items(movie_id, 12)
+    return {"movies": [utils.movie_to_dict(mid, score, {}, []) for mid, score in pairs]}
 
 
 # ─── Notation ────────────────────────────────────────────────────────────────

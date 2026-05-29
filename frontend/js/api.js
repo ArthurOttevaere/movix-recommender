@@ -43,6 +43,14 @@ const api = {
     return fetch(`${CONFIG.API_BASE_URL}/recommendations/${userToken}`).then(r => r.json());
   },
 
+  async getSimilar(movieId) {
+    if (CONFIG.USE_MOCK) {
+      const recs = await this.getRecommendations(null);
+      return { movies: recs.carousels.flatMap(c => c.movies).slice(0, 12) };
+    }
+    return fetch(`${CONFIG.API_BASE_URL}/similar/${movieId}`).then(r => r.json());
+  },
+
   async getMovie(movieId, userToken) {
     const recs = await this.getRecommendations(userToken);
     const allMovies = [

@@ -493,10 +493,25 @@ async function rollSurprise() {
     setTimeout(() => btn.classList.remove('rolling'), 760);
   }
 
-  // Prefer films from user's recommendation pool (highest probability of being liked)
-  const pool = allMoviesPool.length
-    ? [...allMoviesPool]
-    : await TMDB.topRated(Math.ceil(Math.random() * 5)).then(rs => rs.map(r => TMDB.parseLite(r))).catch(() => []);
+  // A random "hidden gem" from TMDB: highly rated but NOT a blockbuster.
+  //   vote_average.desc + a moderate vote-count window (300–5000) → critically
+  //   loved films that aren't mega-popular. Random genre + page for variety.
+  let pool = [];
+  try {
+    const randomGenre = DISCOVER_GENRES[Math.floor(Math.random() * DISCOVER_GENRES.length)];
+    const page = 1 + Math.floor(Math.random() * 5);
+    const results = await TMDB.discoverByGenre({
+      genres: [randomGenre.tmdb],
+      sort_by: 'vote_average.desc',
+      vote_count_gte: 300,
+      vote_count_lte: 5000,
+      page,
+    });
+    pool = results.map(r => TMDB.parseLite(r));
+  } catch { /* fall through to fallback below */ }
+
+  // Fallback to the user's pool if TMDB is unavailable
+  if (!pool.length) pool = [...allMoviesPool];
 
   if (!pool.length) {
     result.innerHTML = '<p class="empty-state">Nothing to surprise you with right now.</p>';

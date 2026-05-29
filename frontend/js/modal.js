@@ -126,17 +126,10 @@ async function loadMoreLikeThis(movieMeta) {
   if (!section) return;
 
   try {
-    const token = auth.getToken();
-    const data = await api.getRecommendations(token);
-    const allMovies = data.carousels.flatMap(c => c.movies);
-
-    const currentGenres = new Set(movieMeta.genres || []);
-
-    const similar = allMovies
+    // Content-based item-item similarity (films closest to THIS one in feature space)
+    const data = await api.getSimilar(movieMeta.movie_id);
+    const similar = (data.movies || [])
       .filter(m => m.movie_id !== movieMeta.movie_id)
-      .filter(m => (m.genres || []).some(g => currentGenres.has(g)))
-      .filter((m, idx, arr) => arr.findIndex(x => x.movie_id === m.movie_id) === idx) // dedupe
-      .sort((a, b) => (b.score || 0) - (a.score || 0))
       .slice(0, 6);
 
     if (!similar.length) { section.style.display = 'none'; return; }
