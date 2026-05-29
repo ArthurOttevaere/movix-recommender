@@ -177,15 +177,14 @@ def recommend(user_ratings: dict, n: int = 20) -> list[tuple[int, float]]:
     if not results:
         return []
 
-    # 6. Tri et Normalisation UI
+    # 6. Tri (note prédite desc, puis support) et sortie
+    #    On renvoie la NOTE PRÉDITE clampée [0.5, 5.0] — comme content.py / svd.py.
+    #    C'est une estimation absolue de combien l'utilisateur aimerait le film, donc
+    #    le "% match" vert reflète un vrai match (et non un min-max relatif aux 20
+    #    films affichés, qui forçait toujours le 1er à 100 % et le dernier à ~0 %).
+    #    Le classement est inchangé (le min-max retiré était monotone).
     results.sort(key=lambda x: (-x[1], -x[2]))
-    top = [(mid, score) for mid, score, _ in results[:n]]
-
-    raw_scores = [s for _, s in top]
-    lo, hi = min(raw_scores), max(raw_scores)
-    if hi > lo:
-        spread = [(mid, 0.5 + 4.5 * (s - lo) / (hi - lo)) for mid, s in top]
-    else:
-        spread = [(mid, float(lo)) for mid, _ in top]
-        
-    return [(mid, round(float(np.clip(s, 0.5, 5.0)), 4)) for mid, s in spread]
+    return [
+        (mid, round(float(np.clip(score, 0.5, 5.0)), 4))
+        for mid, score, _ in results[:n]
+    ]
