@@ -5,10 +5,10 @@ from models import *
 class EvalConfig:
     
     models = [
-        # ("baseline_1", ModelBaseline1, {}),  # model_name, model class, model parameters (dict)
-        # ("baseline_2", ModelBaseline2, {}),
-        # ("baseline_3", ModelBaseline3, {}),
-        # ("baseline_4", ModelBaseline4, {"random_state": 1}),
+        ("baseline_1", ModelBaseline1, {}),  # model_name, model class, model parameters (dict)
+        ("baseline_2", ModelBaseline2, {}),
+        ("baseline_3", ModelBaseline3, {}),
+        ("baseline_4", ModelBaseline4, {"random_state": 1}),
         # ("KNNwithMeans", ModelBaseline5, {"random_state": 1}),
         # ("UserBased_Manual", UserBased, {"k": 3, "min_k": 2, "sim_options": {'name': 'msd', 'min_support': 3, 'user_based': True}}),
 
@@ -26,7 +26,7 @@ class EvalConfig:
     # Evaluation metrics. Only rmse is activated here for computational reasons, but you can activate more metrics if you want.
     split_metrics = ["rmse", "mae"]
     loo_metrics = ["hit_rate", "ndcg@5", "ndcg@10", "ndcg@20"]
-    full_metrics = ["coverage", "miuf", "ild"]
+    full_metrics = ["coverage", "miuf", "ild","serendipity"]  # -- configure the metrics to compute for the full evaluation (from the list of implemented metrics) --
 
     # Split parameters
     test_size = 0.25  # -- configure the test_size (from 0 to 1) --

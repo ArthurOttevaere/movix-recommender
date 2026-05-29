@@ -55,6 +55,33 @@ def get_top_n(predictions, n):
 
     return top_n
 
+def get_top_n_reranked(predictions, item_freq, alpha=0.1, n=80):
+    """
+    Retourne les top-N recommandations pour chaque utilisateur en combinant
+    la note prédite et la popularité logarithmique de l'item.
+    """
+    import math
+    rd.seed(0)
+
+    # 1. Cartographier les prédictions par utilisateur
+    top_n = defaultdict(list)
+    for uid, iid, true_r, est, _ in predictions:
+        # Calcul du score combiné
+        # item_freq.get(iid, 1) donne le nombre de fois que l'item a été vu
+        freq = item_freq.get(iid, 1)
+        score_pop = math.log1p(freq) # log(1 + freq) pour adoucir les gros écarts
+        
+        score_final = est + alpha * score_pop
+        top_n[uid].append((iid, score_final))
+
+    # 2. Trier et extraire les N meilleurs
+    for uid, user_ratings in top_n.items():
+        rd.shuffle(user_ratings)
+        user_ratings.sort(key=lambda x: x[1], reverse=True)
+        top_n[uid] = user_ratings[:n]
+
+    return top_n
+
 
 # First algorithm
 class ModelBaseline1(AlgoBase):
