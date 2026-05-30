@@ -1,5 +1,16 @@
 """
-Content-Based model — Personne 1 implémente ce fichier.
+Content-Based model — sert la configuration retenue dans configs.py :
+
+    ("ContentBased_ridge_cv", ContentBased,
+     {"features_method": "all_content_tmdb_tags2000", "regressor_method": "ridge_cv"})
+
+Découpage Content Analyzer / Profile Learner (cf. models.ContentBased) :
+  - Content Analyzer  → matrice de features `all_content_tmdb_tags2000`
+                        (genome + tags TF-IDF 2000 + année/décennie/genres + TMDB).
+                        Pré-calculée hors-ligne et sérialisée dans content_features.pkl.
+  - Profile Learner   → regressor_method="ridge_cv" : un RidgeCV ré-entraîné À LA VOLÉE
+                        sur les notes du nouvel utilisateur (folding-in), exactement
+                        comme `estimate()` côté évaluation. C'est ce que fait recommend().
 
 Interface à respecter :
     load() → None
@@ -14,20 +25,20 @@ Sortie de recommend() :
     Les scores doivent être clampés dans [0.5, 5.0].
     Retourner [] si impossible (artefact manquant, pas assez de données).
 
-Stratégie suggérée :
+Stratégie (= regressor_method "ridge_cv" de models.ContentBased) :
     1. Filtrer user_ratings aux films présents dans content_features.index.
     2. Si moins de 2 films ont des features → retourner [].
     3. Construire X (n_rated × n_features) et y (n_rated,) depuis les ratings.
-    4. Entraîner RidgeCV(alphas=[0.1, 1, 10, 100, 1000]) sur X, y.
+    4. Entraîner RidgeCV(alphas=RIDGE_CV_ALPHAS, scoring="neg_root_mean_squared_error").
     5. Scorer TOUS les films : scores = model.predict(content_features.values).
     6. Exclure les films déjà notés.
     7. Retourner top-n triés, scores clampés [0.5, 5.0].
 
-Génération de l'artefact (à ajouter dans ton notebook) :
+Génération de l'artefact (depuis le notebook / la config d'évaluation) :
     import pickle
     with open("backend/artifacts/content_features.pkl", "wb") as f:
         pickle.dump(content_model.content_features, f)
-    # content_model.content_features est le pd.DataFrame du modèle entraîné
+    # content_model.content_features = pd.DataFrame (movieId × features)
 """
 
 import pickle
@@ -37,6 +48,10 @@ from sklearn.linear_model import RidgeCV
 import numpy as np
 
 ARTIFACTS_DIR = Path(__file__).parent.parent / "artifacts"
+
+# Grille d'alphas identique au regressor_method="ridge_cv" de models.ContentBased
+# (RidgeCV choisit alpha par validation croisée leave-one-out sur les notes du user).
+RIDGE_CV_ALPHAS = [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0]
 
 _content_features = None  # pd.DataFrame chargé par load()
 
@@ -109,7 +124,7 @@ def recommend(user_ratings: dict, n: int = 20) -> list[tuple[int, float]]:
     y_train = np.array([clean_ratings[movie_id] for movie_id in valid_ids])
 
     model = RidgeCV(
-        alphas=[0.1, 1.0, 10.0, 100.0, 1000.0],
+        alphas=RIDGE_CV_ALPHAS,
         scoring="neg_root_mean_squared_error",
     )
 
