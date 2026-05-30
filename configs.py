@@ -20,6 +20,9 @@ class EvalConfig:
         # ("LatentFactor", LatentFactor, {}),          # results already available
         # ("LatentFactorPP", LatentFactorPP, {}),       # results already available
         # ("LatentFactorRanking2", LatentFactorRanking2, {}),  # results already available
+
+        ("ContentBased_ridge_cv", ContentBased, {"features_method": "all_content_tmdb_tags2000", "regressor_method": "ridge_cv"}),
+
         ("BPR",         ModelBPR,        {"factors": 64, "learning_rate": 0.01, "regularization": 0.01, "iterations": 100}),
         ("BPR_Novelty", ModelBPRNovelty, {"factors": 64, "learning_rate": 0.01, "regularization": 0.01, "iterations": 100, "beta": 0.2}),
         ("iALS",        ModeliALS,       {"factors": 50, "iterations": 20, "regularization": 0.01, "alpha": 40}),
