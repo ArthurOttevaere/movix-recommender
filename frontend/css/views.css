@@ -150,17 +150,19 @@
 .search-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.88);
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(229, 9, 20, 0.18), transparent 55%),
+    rgba(8, 8, 10, 0.92);
   z-index: 3000;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 90px;
+  padding-top: 13vh;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s ease;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  transition: opacity 0.25s ease;
+  backdrop-filter: blur(16px) saturate(130%);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
 }
 
 .search-overlay.open {
@@ -168,66 +170,91 @@
   pointer-events: all;
 }
 
+/* Smooth entrance: the input slides down + fades, results follow */
+.search-input-wrapper,
+.search-results,
+.search-hint {
+  transform: translateY(-14px);
+  opacity: 0;
+  transition: transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.32s ease;
+}
+
+.search-overlay.open .search-input-wrapper { transform: translateY(0); opacity: 1; transition-delay: 0.04s; }
+.search-overlay.open .search-results        { transform: translateY(0); opacity: 1; transition-delay: 0.10s; }
+.search-overlay.open .search-hint           { transform: translateY(0); opacity: 1; transition-delay: 0.14s; }
+
 .search-close-btn {
   position: absolute;
-  top: 20px;
-  right: 24px;
-  background: none;
-  border: none;
+  top: 22px;
+  right: 26px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: var(--text-secondary);
   cursor: pointer;
-  padding: 8px;
+  padding: 9px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color var(--transition), background var(--transition);
+  transition: color var(--transition-fast), background var(--transition-fast),
+    border-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .search-close-btn:hover {
   color: white;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.28);
+  transform: rotate(90deg);
 }
 
 .search-close-btn svg {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
 }
 
 .search-input-wrapper {
   width: 100%;
-  max-width: 1000px;
+  max-width: 720px;
   padding: 0 24px;
   position: relative;
 }
 
 .search-input-wrapper svg {
   position: absolute;
-  left: 44px;
+  left: 48px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-muted);
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   pointer-events: none;
+  transition: color 0.25s ease, transform 0.25s ease;
+}
+
+.search-input-wrapper:focus-within svg {
+  color: var(--accent);
+  transform: translateY(-50%) scale(1.1);
 }
 
 .search-input {
   width: 100%;
-  background: rgba(255, 255, 255, 0.07);
-  border: 2px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  padding: 16px 16px 16px 52px;
-  font-size: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  padding: 19px 20px 19px 60px;
+  font-size: 19px;
+  letter-spacing: 0.01em;
   color: var(--text-primary);
   font-family: inherit;
   outline: none;
-  transition: border-color 0.2s, background 0.2s;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
 }
 
 .search-input:focus {
-  border-color: rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 0 0 4px rgba(229, 9, 20, 0.18), 0 16px 50px rgba(229, 9, 20, 0.14);
 }
 
 .search-input::placeholder {
@@ -236,10 +263,11 @@
 
 .search-results {
   width: 100%;
-  max-width: 1000px;
-  padding: 10px 24px 20px;
+  max-width: 860px;
+  padding: 18px 24px 20px;
+  margin-top: 4px;
   overflow-y: auto;
-  max-height: calc(100vh - 200px);
+  max-height: calc(100vh - 230px);
   scrollbar-width: thin;
   scrollbar-color: var(--bg-elevated) transparent;
 }
@@ -248,17 +276,20 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--text-muted);
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   padding: 0 2px;
 }
 
 .search-empty {
   text-align: center;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 15px;
-  padding: 40px 0;
+  padding: 48px 0;
 }
 
 /* Results grid — Netflix poster grid */
@@ -277,11 +308,16 @@
 .search-grid-poster-wrap {
   position: relative;
   aspect-ratio: 2/3;
-  border-radius: var(--card-radius);
+  border-radius: 8px;
   overflow: hidden;
   background: var(--bg-elevated);
   margin-bottom: 7px;
-  transition: box-shadow var(--transition);
+  transition: box-shadow var(--transition), transform var(--transition);
+}
+
+.search-grid-card:hover .search-grid-poster-wrap {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
 }
 
 .search-grid-card.is-recommended .search-grid-poster-wrap {
@@ -466,19 +502,24 @@
 }
 
 .search-hint {
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--text-muted);
-  margin-top: 20px;
+  margin-top: 22px;
   text-align: center;
+  letter-spacing: 0.02em;
 }
 
 .search-hint kbd {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-  padding: 1px 6px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 5px;
+  padding: 2px 7px;
+  margin: 0 2px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
 }
 
 @media (max-width: 600px) {

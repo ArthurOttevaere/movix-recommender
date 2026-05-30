@@ -66,6 +66,8 @@ let allMoviesPool = [];
 let homeModelCarousels = [];       // the 4 model carousels, FULL movie lists (for genre filtering in Discover)
 let discoverLoaded = false;
 let surpriseInit = false;
+let lastSurpriseId = null;     // pour éviter de retomber sur le même film au reroll
+let surpriseCandidatesData = [];  // films non vus + score = VRAI match (note prédite)
 let selectedDiscoverGenre = DISCOVER_GENRES[0].tmdb;  // default = first genre
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -80,17 +82,45 @@ document.addEventListener('DOMContentLoaded', async () => {
   initSagaModal();
   navigation.init([]);
 
-  const token = auth.getToken();
   let data;
   try {
-    data = await api.getRecommendations(token);
+    data = await loadRecommendations();
   } catch (err) {
     console.error('Failed to load recommendations:', err);
     return;
   }
+  if (!data) return;  // une reprise de session a redirigé (onboarding)
 
   allMoviesPool = [data.hero, ...data.carousels.flatMap(c => c.movies)].filter(Boolean);
   navigation.setMoviePool(allMoviesPool);
+
+  // Vivier « Surprise me » : UNIQUEMENT les modèles qui prédisent une NOTE sur
+  // l'échelle 0.5–5 (content/svd/user_based) → leur `score` normalisé est un vrai
+  // % de match avec les ratings de l'utilisateur. On affiche systématiquement le
+  // score content-based (le modèle « basé sur vos goûts ») quand le film y figure,
+  // et on n'agrège JAMAIS via un max inter-modèles ni via les carrousels de genre
+  // (score moyenné) → jamais de % « sorti de nulle part ».
+  const RATING_MODELS = new Set(['content_based', 'svd', 'user_based']);
+  const contentScore = new Map(
+    (data.carousels.find(c => c.model === 'content_based')?.movies || [])
+      .filter(m => m && typeof m.score === 'number')
+      .map(m => [m.movie_id, m.score])
+  );
+  const surpriseSeen = new Map();
+  for (const c of data.carousels) {
+    if (!RATING_MODELS.has(c.model)) continue;
+    for (const m of (c.movies || [])) {
+      if (!m || m.movie_id == null) continue;
+      const genuine = contentScore.has(m.movie_id)
+        ? contentScore.get(m.movie_id)                                  // match content-based (canonique)
+        : (typeof m.score === 'number' ? m.score : null);              // sinon note prédite svd/user_based
+      if (genuine == null) continue;
+      if (!surpriseSeen.has(m.movie_id) || contentScore.has(m.movie_id)) {
+        surpriseSeen.set(m.movie_id, { ...m, score: genuine, _genuineMatch: true });
+      }
+    }
+  }
+  surpriseCandidatesData = [...surpriseSeen.values()];
 
   const recCarousels = data.carousels.filter(c => !c.model.startsWith('genre:'));
   homeModelCarousels = selectHomeCarousels(recCarousels);   // full lists (kept for Discover genre filtering)
@@ -98,6 +128,35 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Home shows up to 20 per row; Discover filters the full lists by genre.
   await renderHomeCarousels(homeModelCarousels.map(c => ({ ...c, movies: c.movies.slice(0, 20) })), allMoviesPool);
 });
+
+// Charge les recommandations en survivant à un token périmé. Le store backend est
+// en mémoire : à chaque redémarrage d'uvicorn (ou reload sur modif de code), les
+// tokens créés à l'onboarding disparaissent → /recommendations/{token} renvoie 404.
+// Plutôt que de planter (page qui charge à l'infini → on devait vider le localStorage
+// à la main), on RECONSTRUIT la session à partir des ratings déjà stockés en
+// localStorage : on les re-soumet pour obtenir un token frais, puis on réessaie.
+// Aucun re-onboarding, aucun vidage de cache. (Le profil démo Lenny, lui, a un token
+// fixe reconstruit côté serveur → il ne tombe jamais en 404.)
+async function loadRecommendations() {
+  const token = auth.getToken();
+  try {
+    return await api.getRecommendations(token);
+  } catch (err) {
+    if (!err || err.status !== 404) throw err;  // vraie erreur réseau → on remonte
+
+    const stored = JSON.parse(pstore.get('ratings') || '{}');
+    const arr = Object.entries(stored).map(([id, r]) => ({ movie_id: parseInt(id), rating: r }));
+    if (arr.length >= 5) {
+      const res = await api.submitOnboarding(arr);  // pose un nouveau token dans pstore
+      if (res?.user_token) return await api.getRecommendations(res.user_token);
+    }
+
+    // Pas assez de ratings pour reconstruire → repartir proprement par l'onboarding
+    pstore.remove('user_token');
+    window.location.href = 'onboarding.html';
+    return null;
+  }
+}
 
 function updateStreak() {
   const today = new Date().toDateString();
@@ -343,8 +402,8 @@ async function loadTrendingCarousel() {
 }
 
 async function refreshCarousels() {
-  const token = auth.getToken();
-  const data = await api.getRecommendations(token);
+  const data = await loadRecommendations();  // résilient à un token périmé (restart)
+  if (!data) return;
   const allMovies = [data.hero, ...data.carousels.flatMap(c => c.movies)].filter(Boolean);
   const recCarousels = data.carousels.filter(c => !c.model.startsWith('genre:'));
   homeModelCarousels = selectHomeCarousels(recCarousels);
@@ -479,6 +538,42 @@ async function initSurpriseView() {
   rollSurprise();
 }
 
+// Candidats « Surprise me » : films non vus dont le `score` est garanti être un
+// VRAI match avec les ratings de l'utilisateur (note prédite content/svd/user_based,
+// cf. surpriseCandidatesData construit au chargement). On exclut les films déjà
+// notés/vus et on trie par match décroissant.
+function buildSurpriseCandidates() {
+  const ratings = JSON.parse(pstore.get('ratings') || '{}');
+  const ratedIds = new Set(Object.keys(ratings).map(Number));
+  return surpriseCandidatesData
+    .filter(m => typeof m.score === 'number' && m.user_rating == null && !ratedIds.has(m.movie_id))
+    .sort((a, b) => (b.score || 0) - (a.score || 0));
+}
+
+// Tirage : on reste DANS les meilleurs matchs (top ~40 %) pour que le film
+// proposé plaise vraiment — le but est de faire gagner du temps, pas de sortir
+// une curiosité au hasard — mais on pondère par le score et on évite le dernier
+// tirage, donc chaque lancer reste une vraie surprise.
+function pickSurprise(candidates) {
+  if (!candidates.length) return null;
+  const windowSize = Math.min(40, Math.max(8, Math.ceil(candidates.length * 0.4)));
+  let pool = candidates.slice(0, windowSize);
+  if (pool.length > 1 && lastSurpriseId != null) {
+    const filtered = pool.filter(m => m.movie_id !== lastSurpriseId);
+    if (filtered.length) pool = filtered;
+  }
+  const weights = pool.map(m => Math.pow((m.score || 0.01) + 0.05, 2));  // ∝ match²
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  let chosen = pool[0];
+  for (let i = 0; i < pool.length; i++) {
+    r -= weights[i];
+    if (r <= 0) { chosen = pool[i]; break; }
+  }
+  lastSurpriseId = chosen.movie_id;
+  return chosen;
+}
+
 async function rollSurprise() {
   const result = document.getElementById('surprise-result');
   const btn = document.getElementById('surprise-btn');
@@ -493,32 +588,31 @@ async function rollSurprise() {
     setTimeout(() => btn.classList.remove('rolling'), 760);
   }
 
-  // A random "hidden gem" from TMDB: highly rated but NOT a blockbuster.
-  //   vote_average.desc + a moderate vote-count window (300–5000) → critically
-  //   loved films that aren't mega-popular. Random genre + page for variety.
-  let pool = [];
-  try {
-    const randomGenre = DISCOVER_GENRES[Math.floor(Math.random() * DISCOVER_GENRES.length)];
-    const page = 1 + Math.floor(Math.random() * 5);
-    const results = await TMDB.discoverByGenre({
-      genres: [randomGenre.tmdb],
-      sort_by: 'vote_average.desc',
-      vote_count_gte: 300,
-      vote_count_lte: 5000,
-      page,
-    });
-    pool = results.map(r => TMDB.parseLite(r));
-  } catch { /* fall through to fallback below */ }
+  // 1) Cas nominal : tirer parmi les recommandations personnalisées (films non vus
+  //    que l'utilisateur va aimer). C'est le rôle attendu du « Surprise me ».
+  let movie = pickSurprise(buildSurpriseCandidates());
 
-  // Fallback to the user's pool if TMDB is unavailable
-  if (!pool.length) pool = [...allMoviesPool];
+  // 2) Repli cold-start (aucune reco perso dispo) : pépite TMDB bien notée.
+  if (!movie) {
+    try {
+      const randomGenre = DISCOVER_GENRES[Math.floor(Math.random() * DISCOVER_GENRES.length)];
+      const page = 1 + Math.floor(Math.random() * 5);
+      const results = await TMDB.discoverByGenre({
+        genres: [randomGenre.tmdb],
+        sort_by: 'vote_average.desc',
+        vote_count_gte: 300,
+        vote_count_lte: 5000,
+        page,
+      });
+      const pool = results.map(r => TMDB.parseLite(r));
+      if (pool.length) movie = pool[Math.floor(Math.random() * pool.length)];
+    } catch { /* ignore */ }
+  }
 
-  if (!pool.length) {
+  if (!movie) {
     result.innerHTML = '<p class="empty-state">Nothing to surprise you with right now.</p>';
     return;
   }
-
-  const movie = pool[Math.floor(Math.random() * pool.length)];
 
   result.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
   result.style.opacity = '0';
@@ -530,13 +624,22 @@ async function rollSurprise() {
     try { details = await getMovieDetails(movie.tmdb_id); } catch { details = null; }
     const poster = details?.poster_url || movie.poster_url || 'img/placeholder_poster.svg';
     const backdrop = details?.backdrop_url || movie.backdrop_url || 'img/placeholder_backdrop.svg';
+    // % Match affiché UNIQUEMENT pour un vrai match basé sur les ratings (note
+    // prédite). Le repli TMDB (vote_average) n'est PAS un match utilisateur → pas
+    // de badge, jamais de % « sorti de nulle part ».
+    const match = (movie._genuineMatch && typeof movie.score === 'number')
+      ? Math.round(movie.score * 100)
+      : null;
+    const matchBadge = match != null
+      ? `<span class="hero-meta-score" style="margin-right:8px">${match}% Match</span>`
+      : '';
     result.innerHTML = `
       <div class="surprise-card" data-movie-id="${movie.movie_id}" style="background-image:url('${backdrop}')">
         <div class="surprise-card-gradient"></div>
         <img class="surprise-card-poster" src="${poster}" alt="${escapeHtml(movie.title)}">
         <div class="surprise-card-info">
           <h2>${escapeHtml(details?.title || movie.title)}</h2>
-          <p class="surprise-meta">${(details?.genres || movie.genres || []).slice(0, 3).join(' · ') || ''} ${details?.year ? '· ' + details.year : ''}</p>
+          <p class="surprise-meta">${matchBadge}${(details?.genres || movie.genres || []).slice(0, 3).join(' · ') || ''} ${details?.year ? '· ' + details.year : ''}</p>
           <p class="surprise-overview">${escapeHtml((details?.overview || '').slice(0, 280))}</p>
           <div class="surprise-actions">
             <button class="btn-primary" id="surprise-open"><i data-lucide="play"></i> Play</button>

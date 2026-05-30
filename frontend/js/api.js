@@ -40,7 +40,15 @@ const api = {
     if (CONFIG.USE_MOCK) {
       return fetch('mock/recommendations.json').then(r => r.json());
     }
-    return fetch(`${CONFIG.API_BASE_URL}/recommendations/${userToken}`).then(r => r.json());
+    const res = await fetch(`${CONFIG.API_BASE_URL}/recommendations/${userToken}`);
+    if (!res.ok) {
+      // Token inconnu/expiré (souvent après un redémarrage serveur) → on remonte le
+      // statut pour que l'appelant puisse reconstruire la session (voir home.js).
+      const err = new Error(`recommendations HTTP ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+    return res.json();
   },
 
   async getSimilar(movieId) {
