@@ -676,7 +676,7 @@ class ContentBased(AlgoBase):
             return df_features.fillna(0)
 
         elif features_method == "all_content_decade":
-            # all_content + decade one-hot ADDITIVE (normalised year kept)
+            # all_content + decade one-hot ADDITIF (year normalisé conservé)
             df_genome_scaled = self._load_genome_scaled()
             df_tags = self._load_tags()
             df_year, df_genres = self._load_year_genres(df_items, with_decades=True)
@@ -734,7 +734,7 @@ class ContentBased(AlgoBase):
             return df_features.fillna(0)
 
         elif features_method == "genome_tags1128_only":
-            # Minimal hypothesis: just genome (1128) + tags(1128). Exact match de l'indice ami.
+            # Hypothèse minimale : juste genome (1128) + tags(1128). Match exact de l'indice ami.
             df_genome_scaled = self._load_genome_scaled()
             df_tags = self._load_tags(max_features=1128, ngrams=(1, 2), sublinear=True, min_df=3)
             df_features = df_genome_scaled.join(df_tags, how='outer')
@@ -757,7 +757,7 @@ class ContentBased(AlgoBase):
             return df_features.fillna(0)
 
         elif features_method == "all_content_tmdb_tags2000":
-            # Pushes further: tags max=2000 (beyond genome dimension).
+            # Pousse plus loin : tags max=2000 (au-delà de la dim genome).
             df_genome_scaled = self._load_genome_scaled()
             df_tags = self._load_tags(max_features=2000, ngrams=(1, 2), sublinear=True, min_df=3)
             df_year, df_genres = self._load_year_genres(df_items, with_decades=True)
