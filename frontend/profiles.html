@@ -222,6 +222,14 @@
       }
     }
 
+    // ─── Profil démo « Lenny » (préférences pré-chargées) ─────────────────────
+    // Token fixe côté backend (backend/store.py → LENNY_TOKEN). Sélectionner ce
+    // profil saute l'onboarding et utilise directement la bibliothèque riche de
+    // Lenny pour toutes les recommandations. L'onboarding nouvel-utilisateur reste
+    // inchangé pour les autres profils.
+    const LENNY_TOKEN = 'lenny-demo-token';
+    const LENNY_PROFILE_ID = 'lenny-demo';
+
     // ─── Page state ───────────────────────────────────────────────────────────
     let manageMode = false;
     let selectedAvatar = null;
@@ -229,6 +237,9 @@
     let createAgePicker, editAgePicker;
 
     document.addEventListener('DOMContentLoaded', () => {
+      // Le profil démo Lenny est toujours présent dans les choix.
+      profiles.ensureBuiltIn(LENNY_PROFILE_ID, 'Lenny', 'red');
+
       const active = profiles.active();
       const skip = new URLSearchParams(location.search).get('switch') !== '1';
       if (skip && active && active.onboarded && !!pstore.get('user_token')) {
@@ -262,43 +273,57 @@
         const tile = document.createElement('button');
         tile.className = 'profile-tile';
         tile.type = 'button';
+        const demoBadge = p.builtIn
+          ? `<span class="profile-tile-name" style="color:var(--text-muted);font-size:12px">Demo · preloaded</span>`
+          : '';
         tile.innerHTML = `
           <img class="profile-tile-avatar" src="${profiles.avatarSvg(p.avatar, p.name)}" alt="${escapeHtml(p.name)}">
           <span class="profile-tile-name">${escapeHtml(p.name)}</span>
+          ${demoBadge}
         `;
         tile.addEventListener('click', () => {
           if (manageMode) return;
           profiles.select(p.id);
+          if (p.id === LENNY_PROFILE_ID) {
+            // Profil pré-chargé : on injecte le token démo et on saute l'onboarding.
+            pstore.set('user_token', LENNY_TOKEN);
+            profiles.markOnboarded(p.id);
+            location.href = 'index.html';
+            return;
+          }
           const hasToken = !!pstore.get('user_token');
           location.href = (p.onboarded && hasToken) ? 'index.html' : 'onboarding.html';
         });
         wrap.appendChild(tile);
 
-        const del = document.createElement('button');
-        del.className = 'profile-tile-delete';
-        del.title = 'Delete profile';
-        del.innerHTML = '✕';
-        del.addEventListener('click', e => {
-          e.stopPropagation();
-          if (confirm(`Delete profile "${p.name}"? This wipes its ratings and list.`)) {
-            profiles.delete(p.id);
-            renderGrid();
-          }
-        });
-        if (manageMode) del.style.opacity = '1';
-        wrap.appendChild(del);
+        // Les profils intégrés (démo) ne sont ni supprimables ni éditables.
+        if (!p.builtIn) {
+          const del = document.createElement('button');
+          del.className = 'profile-tile-delete';
+          del.title = 'Delete profile';
+          del.innerHTML = '✕';
+          del.addEventListener('click', e => {
+            e.stopPropagation();
+            if (confirm(`Delete profile "${p.name}"? This wipes its ratings and list.`)) {
+              profiles.delete(p.id);
+              renderGrid();
+            }
+          });
+          if (manageMode) del.style.opacity = '1';
+          wrap.appendChild(del);
 
-        const edit = document.createElement('button');
-        edit.className = 'profile-tile-edit';
-        edit.title = 'Edit profile';
-        edit.innerHTML = '✎';
-        edit.style.opacity = manageMode ? '1' : '0';
-        edit.style.pointerEvents = manageMode ? 'auto' : 'none';
-        edit.addEventListener('click', e => {
-          e.stopPropagation();
-          openEdit(p);
-        });
-        wrap.appendChild(edit);
+          const edit = document.createElement('button');
+          edit.className = 'profile-tile-edit';
+          edit.title = 'Edit profile';
+          edit.innerHTML = '✎';
+          edit.style.opacity = manageMode ? '1' : '0';
+          edit.style.pointerEvents = manageMode ? 'auto' : 'none';
+          edit.addEventListener('click', e => {
+            e.stopPropagation();
+            openEdit(p);
+          });
+          wrap.appendChild(edit);
+        }
 
         grid.appendChild(wrap);
       });

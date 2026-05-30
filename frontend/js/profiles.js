@@ -58,6 +58,29 @@ const profiles = {
     return profile;
   },
 
+  // Ensure a fixed-id, pre-onboarded profile exists (e.g. the built-in "Lenny"
+  // demo profile). Idempotent: created once, then left as-is so the user can't
+  // lose it. Returns the profile.
+  ensureBuiltIn(id, name, avatarId, extras = {}) {
+    const list = this._readAll();
+    let p = list.find(pr => pr.id === id);
+    if (!p) {
+      p = {
+        id,
+        name: name || 'Demo',
+        avatar: avatarId || PROFILE_AVATARS[0].id,
+        onboarded: true,
+        builtIn: true,
+        created_at: new Date().toISOString(),
+        age: extras.age || null,
+        gender: extras.gender || null,
+      };
+      list.unshift(p);
+      this._writeAll(list);
+    }
+    return p;
+  },
+
   delete(id) {
     const list = this._readAll().filter(p => p.id !== id);
     this._writeAll(list);
