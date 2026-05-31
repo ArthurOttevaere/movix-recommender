@@ -6,7 +6,7 @@ function getRating(movieId) {
   return stored[movieId] || null;
 }
 
-function initStarRating(container, movieId, currentRating = null) {
+function initStarRating(container, movieId, currentRating = null, meta = null) {
   const stars = container.querySelectorAll('.star');
 
   const savedValue = currentRating ? Math.round(currentRating) : 0;
@@ -34,7 +34,7 @@ function initStarRating(container, movieId, currentRating = null) {
       container.dataset.rating = value;
       highlightStars(stars, value);
       updateRatingLabel(container, value);
-      saveRating(movieId, rating);
+      saveRating(movieId, rating, meta);
     });
   });
 }
@@ -52,7 +52,7 @@ function updateRatingLabel(container, value) {
   }
 }
 
-async function saveRating(movieId, rating) {
+async function saveRating(movieId, rating, meta = null) {
   const raw = typeof pstore !== 'undefined' ? pstore.get('ratings') : localStorage.getItem('ratings');
   const stored = JSON.parse(raw || '{}');
   stored[movieId] = rating;
@@ -65,12 +65,23 @@ async function saveRating(movieId, rating) {
   if (typeof pstore !== 'undefined') pstore.set('rating_timestamps', JSON.stringify(timestamps));
   else localStorage.setItem('rating_timestamps', JSON.stringify(timestamps));
 
+  // Remember the TMDB id + title so the rating history can show the right poster
+  // (ratings are keyed by MovieLens movie_id, which getMovieDetails can't resolve).
+  if (meta && (meta.tmdb_id || meta.title)) {
+    const mRaw = typeof pstore !== 'undefined' ? pstore.get('rating_meta') : localStorage.getItem('rating_meta');
+    const metaMap = JSON.parse(mRaw || '{}');
+    metaMap[movieId] = { tmdb_id: meta.tmdb_id || null, title: meta.title || '' };
+    if (typeof pstore !== 'undefined') pstore.set('rating_meta', JSON.stringify(metaMap));
+    else localStorage.setItem('rating_meta', JSON.stringify(metaMap));
+  }
+
+  // Refresh the UI immediately from the local save (don't wait on the network).
+  if (typeof eventBus !== 'undefined') {
+    eventBus.emit('rating:updated', { movieId, rating });
+  }
+
   try {
-    const userToken = auth.getToken();
-    await api.rateMovie(userToken, movieId, rating);
-    if (typeof eventBus !== 'undefined') {
-      eventBus.emit('rating:updated', { movieId, rating });
-    }
+    await api.rateMovie(auth.getToken(), movieId, rating);
   } catch (err) {
     console.warn('Rating saved locally only:', err);
   }

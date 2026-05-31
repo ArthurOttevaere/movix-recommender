@@ -1,32 +1,13 @@
 // escapeHtml is defined globally in api.js
 
-const MODEL_LABELS = {
-  content_based: 'Content-based · Genome features',
-  user_based: 'Collaborative · User KNN',
-  svd: 'Latent factor · SVD matrix',
-  ials: 'Latent factor · Implicit ALS (WRMF)',
-  bpr: 'Ranking · BPR-MF + novelty',
-  ensemble: 'Ensemble · Diversity boost',
-  trending: 'Real-time · Popularity signal',
-  history: 'Your watch history',
-  'genre:Drama': 'Genre · Drama',
-  'genre:Thriller': 'Genre · Thriller',
-  'genre:Sci-Fi': 'Genre · Sci-Fi',
-  'genre:Animation': 'Genre · Animation',
-  'genre:Crime': 'Genre · Crime',
-};
-
 function createCarouselSection(carouselData) {
   const section = document.createElement('section');
   section.className = 'carousel';
   section.id = carouselData.id;
 
-  const modelLabel = MODEL_LABELS[carouselData.model] || '';
-
   section.innerHTML = `
     <div class="carousel-header">
       <h2 class="carousel-title">${escapeHtml(carouselData.label)}</h2>
-      ${modelLabel ? `<span class="carousel-model-badge">${escapeHtml(modelLabel)}</span>` : ''}
     </div>
     <div class="carousel-wrapper">
       <button class="carousel-arrow carousel-arrow-left" aria-label="Previous" data-dir="-1">

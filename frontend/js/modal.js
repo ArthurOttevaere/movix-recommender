@@ -13,8 +13,6 @@ function openMovieModal(movieMeta) {
   document.getElementById('modal-overview').textContent = '';
   document.getElementById('modal-metadata').innerHTML = '';
   document.getElementById('modal-quick-meta').innerHTML = '';
-  document.getElementById('explanation-features').innerHTML = '';
-  document.getElementById('explanation-summary').textContent = '';
   document.getElementById('modal-more-grid').innerHTML = '';
 
   // Watchlist button
@@ -26,7 +24,7 @@ function openMovieModal(movieMeta) {
   const starContainer = document.getElementById('modal-star-rating');
   starContainer.dataset.movieId = movieMeta.movie_id;
   starContainer.innerHTML = [1, 2, 3, 4, 5].map(v => `<span class="star" data-value="${v}">★</span>`).join('');
-  initStarRating(starContainer, movieMeta.movie_id, getRating(movieMeta.movie_id));
+  initStarRating(starContainer, movieMeta.movie_id, getRating(movieMeta.movie_id), { tmdb_id: movieMeta.tmdb_id, title: movieMeta.title });
 
   // Load TMDB details
   getMovieDetails(movieMeta.tmdb_id)
@@ -74,8 +72,6 @@ function renderModalDetails(details, meta) {
     <p><span class="meta-label">Runtime:</span> ${runtimeStr || '—'}</p>
     <p id="modal-saga-membership" style="display:none"></p>
   `;
-
-  renderExplanation(meta, details.genres || []);
 }
 
 function renderModalFallback(meta) {
@@ -89,36 +85,6 @@ function renderModalFallback(meta) {
     <p><span class="meta-label">Year:</span> ${meta.year || '—'}</p>
     <p id="modal-saga-membership" style="display:none"></p>
   `;
-  renderExplanation(meta, meta.genres || []);
-}
-
-function renderExplanation(meta, genres) {
-  const expl = document.getElementById('modal-explanation');
-  const featuresEl = document.getElementById('explanation-features');
-  const summaryEl = document.getElementById('explanation-summary');
-
-  const features = genres.slice(0, 5).map((g, i) => ({
-    name: g,
-    weight: Math.max(0.18, (meta.score || 0.8) - i * 0.09)
-  }));
-
-  if (!features.length) { expl.style.display = 'none'; return; }
-  expl.style.display = '';
-
-  featuresEl.innerHTML = features.map(f => `
-    <div class="feature-row">
-      <span class="feature-name">${escapeHtml(f.name)}</span>
-      <div class="feature-bar"><div class="feature-fill" style="width:0%"></div></div>
-      <span class="feature-pct">${Math.round(f.weight * 100)}%</span>
-    </div>`).join('');
-
-  summaryEl.textContent = meta.explanation || 'Based on your viewing and rating history.';
-
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    featuresEl.querySelectorAll('.feature-fill').forEach((fill, i) => {
-      fill.style.width = `${Math.round(features[i].weight * 100)}%`;
-    });
-  }));
 }
 
 async function loadMoreLikeThis(movieMeta) {

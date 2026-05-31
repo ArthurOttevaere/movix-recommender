@@ -10,6 +10,8 @@ class UserProfile:
     ratings: dict = field(default_factory=dict)            # {int(movie_id): float(rating 0.5–5.0)}
     watchlist: list = field(default_factory=list)          # [int(movie_id)]
     rating_timestamps: dict = field(default_factory=dict)  # {int(movie_id): datetime}
+    most_watched: list = field(default_factory=list)       # [(int(movie_id), int(n_watched))] desc — démo Lenny
+    recent_ids: list = field(default_factory=list)         # [int(movie_id)] vus récemment — démo Lenny
     created_at: datetime = field(default_factory=datetime.utcnow)
 
 
@@ -49,15 +51,45 @@ def _build_lenny() -> "UserProfile | None":
     if not ratings:
         return None
 
+    # Lecture des colonnes signalétiques du CSV (une seule passe) :
+    #   wishlist  → pré-remplit « My List »          (binaire 1/0)
+    #   n_watched → top « Most Watched »             (compteur de visionnages)
+    #   recent    → carrousel « Recently Watched »   (binaire 1/0)
+    watchlist: list[int] = []
+    most_watched: list[tuple[int, int]] = []
+    recent_ids: list[int] = []
+    try:
+        import pandas as pd
+
+        lib = pd.read_csv(_LIBRARY_LENNY)
+        lib["movie_id"] = pd.to_numeric(lib["movie_id"], errors="coerce")
+        lib = lib.dropna(subset=["movie_id"])
+        lib["movie_id"] = lib["movie_id"].astype(int)
+
+        watchlist = [int(m) for m in lib.loc[lib["wishlist"] == 1, "movie_id"]]
+
+        mw = lib[lib["n_watched"] > 0].sort_values("n_watched", ascending=False)
+        most_watched = [(int(m), int(n)) for m, n in zip(mw["movie_id"], mw["n_watched"])]
+
+        recent_ids = [int(m) for m in lib.loc[lib["recent"] == 1, "movie_id"]]
+    except Exception as exc:
+        print(f"[store] colonnes biblio Lenny indisponibles : {exc}")
+
     now = datetime.utcnow()
     user = UserProfile(
         token=LENNY_TOKEN,
         ratings=ratings,
+        watchlist=watchlist,
+        most_watched=most_watched,
+        recent_ids=recent_ids,
         rating_timestamps={mid: now for mid in ratings},
         created_at=now,
     )
     _STORE[LENNY_TOKEN] = user
-    print(f"[store] profil démo Lenny chargé ({len(ratings)} films notés).")
+    print(
+        f"[store] profil démo Lenny chargé ({len(ratings)} notés, "
+        f"{len(watchlist)} wishlist, {len(most_watched)} vus, {len(recent_ids)} récents)."
+    )
     return user
 
 

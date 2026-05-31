@@ -121,6 +121,18 @@ def _build_profile_stats(user: UserProfile) -> dict:
             "top_genres": [], "rating_distribution": {str(k): 0 for k in range(1, 6)},
             "feature_profile": {}, "badge": None,
             "rating_history": [], "watchlist": user.watchlist,
+            "watchlist_movies": [
+                utils.movie_to_dict(mid, None, {}, user.watchlist)
+                for mid in user.watchlist
+            ],
+            "most_watched": [
+                {**utils.movie_to_dict(mid, None, {}, user.watchlist), "n_watched": int(n)}
+                for mid, n in user.most_watched
+            ],
+            "recently_watched": [
+                utils.movie_to_dict(mid, None, {}, user.watchlist)
+                for mid in user.recent_ids
+            ],
         }
 
     values = list(ratings.values())
@@ -155,10 +167,16 @@ def _build_profile_stats(user: UserProfile) -> dict:
         entry["timestamp"] = ts.strftime("%Y-%m-%dT%H:%M:%S")
         history.append(entry)
 
+    # Hours watched: based on the actual number of films viewed (CSV n_watched,
+    # rewatches included) when available — falls back to the rated count otherwise.
+    # ~2h average runtime per film.
+    total_watched = sum(int(n) for _, n in user.most_watched)
+    hours_watched = (total_watched * 2) if total_watched else (len(ratings) * 2)
+
     return {
         "total_ratings": len(ratings),
         "mean_rating": round(mean_r, 2),
-        "hours_watched": len(ratings) * 2,
+        "hours_watched": hours_watched,
         "completion_rate": min(95, 60 + len(ratings) * 2),
         "streak_days": 1,
         "member_since": user.created_at.strftime("%Y-%m-%d"),
@@ -168,6 +186,18 @@ def _build_profile_stats(user: UserProfile) -> dict:
         "badge": None,
         "rating_history": history,
         "watchlist": user.watchlist,
+        "watchlist_movies": [
+            utils.movie_to_dict(mid, None, ratings, user.watchlist)
+            for mid in user.watchlist
+        ],
+        "most_watched": [
+            {**utils.movie_to_dict(mid, None, ratings, user.watchlist), "n_watched": int(n)}
+            for mid, n in user.most_watched
+        ],
+        "recently_watched": [
+            utils.movie_to_dict(mid, None, ratings, user.watchlist)
+            for mid in user.recent_ids
+        ],
     }
 
 

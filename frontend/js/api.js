@@ -84,7 +84,8 @@ const api = {
 
   async toggleWatchlist(userToken, movieId, action) {
     const wl = JSON.parse((typeof pstore !== 'undefined' ? pstore.get('watchlist') : localStorage.getItem('watchlist')) || '[]');
-    if (action === 'add' && !wl.includes(movieId)) wl.push(movieId);
+    // unshift → les films fraîchement ajoutés apparaissent tout en haut de My List.
+    if (action === 'add' && !wl.includes(movieId)) wl.unshift(movieId);
     if (action === 'remove') {
       const idx = wl.indexOf(movieId);
       if (idx > -1) wl.splice(idx, 1);

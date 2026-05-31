@@ -173,19 +173,6 @@
 }
 
 /* ── Sections ────────────────────────────────────────────────────────────────── */
-.profile-two-col {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 64px;
-  padding: 40px 4%;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.profile-two-col .profile-section {
-  padding: 0;
-  border-top: none;
-}
-
 .profile-section {
   padding: 32px 4%;
 }
@@ -197,105 +184,186 @@
   color: var(--text-primary);
 }
 
-/* Genre rows */
-.genre-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
+/* cardReveal vit dans views.css (non chargé ici) — on le redéclare pour les rails. */
+@keyframes cardReveal {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.genre-name {
+/* ── Top Genres — ranked list (top 5) ──────────────────────────────────────── */
+.genre-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 560px;
+}
+
+.genre-rank-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.genre-rank-row:last-child { border-bottom: none; }
+
+.genre-rank-num {
+  font-family: 'Bebas Neue', 'Impact', sans-serif;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: var(--text-muted);
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.genre-rank-row:first-child .genre-rank-num { color: var(--accent); }
+
+.genre-rank-body { flex: 1; min-width: 0; }
+
+.genre-rank-name {
+  display: block;
   font-size: 14px;
-  color: var(--text-secondary);
-  width: 90px;
-  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 9px;
 }
 
-.genre-avg {
-  font-size: 13px;
-  color: var(--star-color);
-  width: 44px;
-  text-align: right;
-  flex-shrink: 0;
+.genre-rank-bar {
+  height: 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
 }
-
-/* Rating distribution */
-.rating-dist-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  height: 180px;
-  width: 100%;
-  padding-bottom: 12px;
-}
-
-.dist-bar-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  flex: 1;
+.genre-rank-fill {
   height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(229, 9, 20, 0.85), #ff4b4b);
 }
 
-.dist-bar-container {
-  flex: 1;
-  width: 100%;
+/* ── Recently Watched — horizontal rail of standard poster cards ────────────── */
+.profile-rail {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 18px 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+          mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+}
+.profile-rail::-webkit-scrollbar { display: none; }
+
+/* Stats row: genres ranking (left) · Most Watched podium (center) · Favorite
+   Sagas podium (right). The genre list flexes to fill the leftover space; the
+   two podiums keep their natural width. Hidden podiums (non-demo profile) drop
+   out and the genre list takes the row on its own. Wraps on narrow screens. */
+.profile-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 36px;
+  align-items: flex-start;
+  justify-content: space-between;   /* equal gaps between the 3 blocks across the width */
+  padding: 32px 4%;
+}
+.profile-stats-row > .profile-section { padding: 0; flex: 0 1 auto; }
+.profile-stats-row > .profile-section:first-child { flex: 0 1 280px; min-width: 200px; }
+
+/* ── Most Watched — poster podium (top 3) ──────────────────────────────────── */
+.poster-podium {
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  gap: 10px;
+  padding: 24px 0 8px;
 }
 
-.dist-bar {
-  width: 70%;
-  min-height: 4px;
-  background: linear-gradient(to top, rgba(229, 9, 20, 0.7), #ff4b4b);
-  border-radius: 6px 6px 0 0;
-  box-shadow: 0 0 16px rgba(229, 9, 20, 0.5);
-  transition: height 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+.poster-podium-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.dist-label {
+/* Big outlined rank digit tucked behind the poster — same DNA as the home
+   "Top" carousels, sized down per podium position. */
+.podium-figure {
+  display: flex;
+  align-items: flex-end;
+}
+.podium-num {
+  font-family: 'Bebas Neue', 'Impact', sans-serif;
+  line-height: 0.62;
+  color: #000;
+  -webkit-text-stroke: 2.5px rgba(255, 255, 255, 0.92);
+  text-shadow: 2px 2px 12px rgba(0, 0, 0, 0.6);
+  margin-right: -11px;
+  transform: translateX(-6px);   /* nudge the digit a touch further left */
+  z-index: 0;
+  user-select: none;
+}
+.podium-figure .movie-card { position: relative; z-index: 1; }
+.podium-first  .podium-num { font-size: 4.8rem; }
+.podium-second .podium-num,
+.podium-third  .podium-num { font-size: 3.5rem; }
+
+/* #1 poster is the tallest; #2 / #3 a touch smaller → podium silhouette */
+.poster-podium .movie-card { flex: none; }
+.poster-podium .movie-card-inner { width: 132px; height: 198px; }
+.poster-podium .movie-card img { height: 198px; }
+.podium-second .movie-card-inner,
+.podium-third  .movie-card-inner {
+  width: 106px;
+  height: 159px;
+}
+.podium-second .movie-card img,
+.podium-third  .movie-card img {
+  height: 159px;
+}
+.podium-first .movie-card-inner {
+  box-shadow: 0 0 0 2px rgba(229, 9, 20, 0.55), 0 14px 40px rgba(229, 9, 20, 0.25);
+}
+
+/* Watch-count chip pinned on the poster */
+.watch-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
-  color: var(--star-color);
-  letter-spacing: 1px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.72);
+  padding: 4px 8px;
+  border-radius: 20px;
+  backdrop-filter: blur(6px);
+  pointer-events: none;
 }
+.watch-badge svg { width: 12px; height: 12px; }
 
-.dist-count {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-/* Feature profile */
-.feature-profile-list {
-  width: 100%;
-}
-
-/* ── Rating history with posters ─────────────────────────────────────────────── */
+/* ── Rating History — full-width responsive list, newest first ─────────────── */
 .history-list {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 12px;
 }
 
 .history-item {
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 12px 18px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: 12px;
-  transition: transform var(--transition), background var(--transition), border-color var(--transition);
-  cursor: pointer;
-  backdrop-filter: blur(10px);
+  gap: 14px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  transition: background var(--transition), border-color var(--transition), transform var(--transition);
 }
-
 .history-item:hover {
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
-  transform: translateX(6px);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
 }
 
 .history-poster {
@@ -308,47 +376,44 @@
   display: block;
 }
 
-.history-info {
-  flex: 1;
-  min-width: 0;
-}
+.history-info { flex: 1; min-width: 0; }
 
 .history-title {
+  display: block;
   font-size: 14px;
   font-weight: 600;
-  display: block;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .history-date {
+  display: block;
   font-size: 12px;
   color: var(--text-muted);
-  display: block;
-  margin-top: 4px;
+  margin-top: 3px;
 }
 
 .history-rating {
   display: flex;
   align-items: center;
   gap: 2px;
-  font-size: 15px;
+  font-size: 14px;
   flex-shrink: 0;
+  letter-spacing: 1px;
 }
 
-.history-score {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-left: 6px;
-  font-weight: 600;
-}
+/* ── Recently Watched & My List share ONE poster size (150 × 225) ──────────── */
+.profile-rail .movie-card { flex-basis: 150px; }
+.profile-rail .movie-card-inner { width: 150px; height: 225px; }
+.profile-rail .movie-card img { height: 225px; }
 
 /* ── Watchlist grid ──────────────────────────────────────────────────────────── */
 .watchlist-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, 150px);
+  gap: 12px;
 }
 
 .watchlist-card {
@@ -378,17 +443,6 @@
 }
 
 /* Responsive */
-@media (max-width: 900px) {
-  .profile-two-col {
-    grid-template-columns: 1fr;
-    gap: 0;
-  }
-
-  .history-list {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 @media (max-width: 640px) {
   .profile-header {
     flex-direction: column;
@@ -403,7 +457,7 @@
     grid-column: span 2;
   }
 
-  .history-list {
-    grid-template-columns: 1fr;
+  .poster-podium {
+    gap: 14px;
   }
 }

@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="css/navbar.css">
+  <link rel="stylesheet" href="css/carousel.css">
   <link rel="stylesheet" href="css/profile.css">
   <link rel="stylesheet" href="css/modal.css">
 </head>
@@ -91,41 +92,39 @@
       </div>
     </section>
 
-    <!-- Favorite Genres -->
-    <section class="profile-section">
-      <h2 class="profile-section-title">Favorite Genres</h2>
-      <div id="top-genres">
-        <div class="loading-spinner"><div class="spinner"></div></div>
-      </div>
-    </section>
-
-    <div class="profile-two-col">
-      <!-- Rating Distribution -->
+    <!-- Top Genres + Most Watched, side by side -->
+    <div class="profile-stats-row">
+      <!-- Top Genres — ranked list (top 5) -->
       <section class="profile-section">
-        <h2 class="profile-section-title">Rating Distribution</h2>
-        <div class="rating-dist-chart" id="rating-distribution">
+        <h2 class="profile-section-title">Top Genres</h2>
+        <ol class="genre-list" id="genre-list">
           <div class="loading-spinner"><div class="spinner"></div></div>
-        </div>
+        </ol>
       </section>
 
-      <!-- Content Profile -->
-      <section class="profile-section">
-        <h2 class="profile-section-title">My Content Profile</h2>
-        <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">
-          Feature weights used by the content-based model for your recommendations.
-        </p>
-        <div class="feature-profile-list" id="feature-profile">
-          <div class="loading-spinner"><div class="spinner"></div></div>
-        </div>
+      <!-- Most Watched — poster podium (top 3) -->
+      <section class="profile-section" id="most-watched-section" style="display:none">
+        <h2 class="profile-section-title">Most Watched</h2>
+        <div class="poster-podium" id="most-watched-podium"></div>
+      </section>
+
+      <!-- Favorite Sagas — poster podium (top 3) -->
+      <section class="profile-section" id="fav-sagas-section" style="display:none">
+        <h2 class="profile-section-title">Favorite Sagas</h2>
+        <div class="poster-podium" id="fav-sagas-podium"></div>
       </section>
     </div>
 
-    <!-- Rating History -->
-    <section class="profile-section">
+    <!-- Recently Watched -->
+    <section class="profile-section" id="recently-watched-section" style="display:none">
+      <h2 class="profile-section-title">Recently Watched</h2>
+      <div class="profile-rail" id="recently-watched-rail"></div>
+    </section>
+
+    <!-- Rating History (most recent first; fills in as you rate films) -->
+    <section class="profile-section" id="rating-history-section">
       <h2 class="profile-section-title">Rating History</h2>
-      <div class="history-list" id="rating-history">
-        <div class="loading-spinner"><div class="spinner"></div></div>
-      </div>
+      <div class="history-list" id="rating-history"></div>
     </section>
 
     <!-- My Watchlist -->
@@ -162,11 +161,6 @@
       <div class="modal-body">
         <div class="modal-left">
           <p class="modal-overview" id="modal-overview"></p>
-          <div class="modal-explanation" id="modal-explanation">
-            <h4>Why This Film?</h4>
-            <div class="explanation-features" id="explanation-features"></div>
-            <p class="explanation-summary" id="explanation-summary"></p>
-          </div>
         </div>
         <div class="modal-right">
           <div id="modal-metadata"></div>
@@ -190,6 +184,25 @@
     </div>
   </div>
 
+  <!-- Saga collection modal (lists the films of the chosen saga) -->
+  <div class="modal-overlay" id="saga-modal" role="dialog" aria-modal="true" aria-labelledby="saga-modal-title">
+    <div class="modal-container" id="saga-modal-container">
+      <div class="modal-backdrop">
+        <img id="saga-modal-backdrop" src="img/placeholder_backdrop.svg" alt="">
+        <div class="modal-backdrop-gradient"></div>
+        <button class="modal-close" id="saga-modal-close" aria-label="Close">✕</button>
+        <div class="modal-hero-info">
+          <h2 class="modal-title" id="saga-modal-title"></h2>
+          <p class="modal-quick-meta" id="saga-modal-overview" style="max-width:680px;line-height:1.5"></p>
+        </div>
+      </div>
+      <div class="modal-body" style="display:block">
+        <h3 class="modal-more-title" style="margin-bottom:16px">All films in this saga</h3>
+        <div class="modal-more-grid" id="saga-modal-grid"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="config.js"></script>
   <script src="config.local.js"></script>
@@ -201,6 +214,7 @@
   <script src="js/ratings.js"></script>
   <script src="js/watchlist.js"></script>
   <script src="js/modal.js"></script>
+  <script src="js/saga.js"></script>
   <script src="js/profile.js"></script>
   <script>
     // Inject the active profile's avatar + name into the page header/navbar
@@ -229,6 +243,7 @@
     })();
 
     initModal();
+    if (typeof initSagaModal === 'function') initSagaModal();
     lucide.createIcons();
 
     window.addEventListener('scroll', () => {

@@ -44,7 +44,7 @@ function movieMatchesGenre(movie, genre) {
 // Each is backed by one of the 4 backend models (matched by `model`).
 const HOME_CAROUSELS = [
   { model: 'ials',          label: 'Top Picks For You' },
-  { model: 'content_based', label: 'Because You Like' },
+  { model: 'content_based', label: 'Based On What You Like' },
   { model: 'user_based',    label: 'Viewers Like You Also Watched' },
   { model: 'bpr',           label: 'Discover Something New' },
 ];
@@ -92,6 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!data) return;  // une reprise de session a redirigé (onboarding)
 
   allMoviesPool = [data.hero, ...data.carousels.flatMap(c => c.movies)].filter(Boolean);
+  await maybeSeedLennyWatchlist();   // pré-remplit My List avec la wishlist CSV de Lenny
   navigation.setMoviePool(allMoviesPool);
 
   // Vivier « Surprise me » : UNIQUEMENT les modèles qui prédisent une NOTE sur
@@ -128,6 +129,35 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Home shows up to 20 per row; Discover filters the full lists by genre.
   await renderHomeCarousels(homeModelCarousels.map(c => ({ ...c, movies: c.movies.slice(0, 20) })), allMoviesPool);
 });
+
+// Token fixe du profil démo Lenny (cf. backend/store.py → LENNY_TOKEN).
+const LENNY_TOKEN = 'lenny-demo-token';
+
+// Au PREMIER chargement du profil démo Lenny, on pré-remplit « My List » avec les
+// films wishlist=1 de son CSV (résolus côté backend → titres/posters corrects).
+// Une seule fois (flag pstore) : les ajouts/retraits ultérieurs sont conservés.
+async function maybeSeedLennyWatchlist() {
+  if (auth.getToken() !== LENNY_TOKEN) return;
+  if (pstore.get('lenny_wishlist_seeded')) return;
+  try {
+    const profile = await api.getProfile(LENNY_TOKEN);
+    const movies = Array.isArray(profile?.watchlist_movies) ? profile.watchlist_movies : [];
+
+    // Ces films (souvent déjà notés → absents des carrousels) ne sont pas dans
+    // allMoviesPool : on les y ajoute pour que My List les rende correctement.
+    const known = new Set(allMoviesPool.map(m => m.movie_id));
+    movies.forEach(m => { if (!known.has(m.movie_id)) allMoviesPool.push(m); });
+
+    // Ajoutés à la SUITE des éventuels ajouts manuels (qui, eux, restent en tête).
+    const ids = JSON.parse(pstore.get('watchlist') || '[]');
+    movies.forEach(m => { if (!ids.includes(m.movie_id)) ids.push(m.movie_id); });
+    pstore.set('watchlist', JSON.stringify(ids));
+    pstore.set('lenny_wishlist_seeded', '1');
+    navigation._updateWatchlistBadge?.();
+  } catch (e) {
+    console.warn('Seed Lenny watchlist failed:', e);
+  }
+}
 
 // Charge les recommandations en survivant à un token périmé. Le store backend est
 // en mémoire : à chaque redémarrage d'uvicorn (ou reload sur modif de code), les
@@ -686,18 +716,22 @@ async function renderWatchlistView() {
 
   if (countEl) countEl.textContent = `${ids.length} film${ids.length > 1 ? 's' : ''}`;
 
-  // Fetch movies: try local pool first, then TMDB
-  const poolMovies = ids
-    .map(id => allMoviesPool.find(m => m.movie_id === id))
+  // Resolve each watchlist id to a movie with the RIGHT tmdb_id. The watchlist
+  // stores MovieLens movie_ids; getMovieDetails() needs a TMDB id, so we must
+  // never feed it a movie_id (that surfaced unrelated films). Source of truth:
+  // the local recommendation pool first, then the backend-resolved watchlist meta
+  // (covers Lenny's preloaded wishlist + anything not currently in a carousel).
+  let metaById = new Map();
+  try {
+    const prof = await api.getProfile(auth.getToken());
+    metaById = new Map((prof.watchlist_movies || []).map(m => [m.movie_id, m]));
+  } catch { /* offline / mock — fall back to the pool only */ }
+
+  // Keep the stored order so freshly added films (unshift'd to the top of `ids`)
+  // appear first in My List.
+  const movies = ids
+    .map(id => allMoviesPool.find(m => m.movie_id === id) || metaById.get(id))
     .filter(Boolean);
-
-  // For IDs not in the local pool, load from TMDB
-  const poolIds = new Set(poolMovies.map(m => m.movie_id));
-  const tmdbIds = ids.filter(id => !poolIds.has(id));
-  const tmdbMovies = await Promise.allSettled(tmdbIds.map(id => getMovieDetails(id)));
-  const extra = tmdbMovies.filter(r => r.status === 'fulfilled').map(r => r.value);
-
-  const movies = [...poolMovies, ...extra];
 
   if (!movies.length) {
     container.innerHTML = '<p class="empty-state">Films not found in the catalog.</p>';

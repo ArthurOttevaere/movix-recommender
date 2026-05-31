@@ -36,22 +36,6 @@
   margin-right: 10px;
 }
 
-.carousel-model-badge {
-  font-size: 11px;
-  color: var(--accent);
-  font-weight: 500;
-  padding: 2px 8px;
-  border: 1px solid var(--accent);
-  border-radius: 20px;
-  opacity: 0;
-  transition: opacity 0.2s;
-  white-space: nowrap;
-}
-
-.carousel:hover .carousel-model-badge {
-  opacity: 1;
-}
-
 .carousel-wrapper {
   position: relative;
 }

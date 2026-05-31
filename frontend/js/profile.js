@@ -1,3 +1,20 @@
+// Lightweight pub/sub for the profile page: home.js defines its own eventBus but
+// it isn't loaded here, so star ratings would otherwise never refresh the history.
+window.eventBus = window.eventBus || {
+  listeners: {},
+  on(e, cb) { (this.listeners[e] = this.listeners[e] || []).push(cb); },
+  emit(e, d) { (this.listeners[e] || []).forEach(cb => cb(d)); },
+};
+
+// Hours watched derived from the CSV (total films viewed) for preloaded profiles.
+// When set, it stays the source of truth for the Hours Watched card (local rating
+// estimates never override it).
+let csvHoursWatched = null;
+
+// Preloaded demo profile (Lenny): the genre ranking + badge come from the rich
+// server-side profile and must stay put even after the user rates a few films.
+let isPreloadedProfile = false;
+
 document.addEventListener('DOMContentLoaded', async () => {
   auth.requireAuth();
 
@@ -16,9 +33,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 1. Compute sync stats from localStorage immediately
   const local = computeLocalStats();
   renderStatsGrid(local);
-  renderRatingDistribution(local.distribution);
 
-  // 2. Load profile data + render history and watchlist
+  // 2. Load profile data + render watchlist
   const token = auth.getToken();
   let profile;
   try {
@@ -27,17 +43,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     profile = { rating_history: [], watchlist: [] };
   }
 
-  await renderRatingHistory(profile.rating_history, local);
-  await renderWatchlistSection();
+  isPreloadedProfile = !!(profile.most_watched && profile.most_watched.length);
 
-  // 3. Async: compute genre stats from TMDB (needs network)
-  if (local.ratingIds.length > 0) {
+  // Hours watched for preloaded profiles (Lenny): the server figure is derived
+  // from the CSV's total films watched. Keep it as the source of truth.
+  if (isPreloadedProfile && profile.hours_watched) {
+    csvHoursWatched = profile.hours_watched;
+    const hEl = document.getElementById('stat-hours-watched');
+    if (hEl) hEl.textContent = csvHoursWatched;
+  }
+
+  // Most Watched + Recently Watched — données issues de la bibliothèque CSV
+  // (renseignées côté backend pour le profil démo Lenny ; vides sinon → masquées).
+  renderMostWatched(profile.most_watched || []);
+  renderRecentlyWatched(profile.recently_watched || []);
+  renderFavoriteSagas(profile.most_watched || []);
+  await renderWatchlistSection(profile.watchlist_movies || []);
+  renderRatingHistory(local);
+
+  // 3. Async: compute genre stats from TMDB (needs network). Preloaded demo
+  // profiles keep their richer server-computed genres instead.
+  if (local.ratingIds.length > 0 && !isPreloadedProfile) {
     computeGenreStats(local.ratingIds, local.ratingsMap).then(stats => {
-      renderTopGenres(stats.topGenres);
-      renderFeatureProfile(stats.featureProfile);
+      renderGenreList(stats.topGenres);
 
-      // Update hours with real runtime data
-      if (stats.hoursWatched > 0) {
+      // Update hours with real runtime data (unless a CSV figure is in charge)
+      if (!csvHoursWatched && stats.hoursWatched > 0) {
         animateStatUpdate('stat-hours-watched', stats.hoursWatched);
       }
 
@@ -46,9 +77,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (badge) renderBadge(badge);
     });
   } else {
-    // No local ratings — fall back to mock
-    renderTopGenres(profile.top_genres || []);
-    renderFeatureProfile(profile.feature_profile || {});
+    // No local ratings (e.g. Lenny démo) — use the genres computed server-side
+    renderGenreList(profile.top_genres || []);
+    const badge = computeBadge(profile.top_genres || [], profile.total_ratings || 0);
+    if (badge) renderBadge(badge);
   }
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -58,14 +90,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     eventBus.on('rating:updated', async () => {
       const updatedLocal = computeLocalStats();
       renderStatsGrid(updatedLocal);
-      renderRatingDistribution(updatedLocal.distribution);
-      await renderRatingHistory(profile.rating_history, updatedLocal);
-      
-      if (updatedLocal.ratingIds.length > 0) {
+      renderRatingHistory(updatedLocal);
+
+      if (updatedLocal.ratingIds.length > 0 && !isPreloadedProfile) {
         computeGenreStats(updatedLocal.ratingIds, updatedLocal.ratingsMap).then(stats => {
-          renderTopGenres(stats.topGenres);
-          renderFeatureProfile(stats.featureProfile);
-          if (stats.hoursWatched > 0) {
+          renderGenreList(stats.topGenres);
+          if (!csvHoursWatched && stats.hoursWatched > 0) {
             animateStatUpdate('stat-hours-watched', stats.hoursWatched);
           }
           const badge = computeBadge(stats.topGenres, updatedLocal.totalRatings);
@@ -112,8 +142,11 @@ function computeLocalStats() {
 
 // ─── Async genre stats (needs TMDB) ───────────────────────────────────────────
 async function computeGenreStats(ratingIds, ratingsMap) {
+  // Ratings are keyed by MovieLens movie_id; resolve to the real TMDB id via the
+  // meta captured at rating time so genres come from the right films.
+  const metaMap = JSON.parse((typeof pstore !== 'undefined' ? pstore.get('rating_meta') : localStorage.getItem('rating_meta')) || '{}');
   const results = await Promise.allSettled(
-    ratingIds.slice(0, 25).map(id => getMovieDetails(id))
+    ratingIds.slice(0, 25).map(id => getMovieDetails(metaMap[id]?.tmdb_id || id))
   );
 
   const genreAccum = {};
@@ -177,7 +210,7 @@ function renderStatsGrid(local) {
   const el = id => document.getElementById(id);
 
   if (el('stat-total-ratings')) el('stat-total-ratings').textContent = local.totalRatings;
-  if (el('stat-hours-watched')) el('stat-hours-watched').textContent = local.hoursWatched || '—';
+  if (el('stat-hours-watched')) el('stat-hours-watched').textContent = csvHoursWatched ?? (local.hoursWatched || '—');
   if (el('stat-mean-rating')) el('stat-mean-rating').textContent = local.meanRating || '—';
   if (el('stat-streak')) el('stat-streak').textContent = local.streak;
   if (el('stat-watchlist')) el('stat-watchlist').textContent = local.watchlistCount;
@@ -214,186 +247,187 @@ function renderBadge(badge) {
   if (desc) desc.textContent = badge.description;
 }
 
-// ─── Render: Top genres ───────────────────────────────────────────────────────
-function renderTopGenres(genres) {
-  const container = document.getElementById('top-genres');
-  if (!container) return;
+// ─── Render: Top genres — ranked list (top 5) ────────────────────────────────
+function renderGenreList(genres) {
+  const el = document.getElementById('genre-list');
+  if (!el) return;
 
-  if (!genres?.length) {
-    container.innerHTML = '<p class="empty-state">Rate some films to see your genre breakdown.</p>';
+  const top5 = (genres || []).filter(g => g && g.genre).slice(0, 5);
+  if (!top5.length) {
+    el.innerHTML = '<p class="empty-state">Rate some films to reveal your top genres.</p>';
     return;
   }
 
-  const maxCount = Math.max(...genres.map(g => g.count), 1);
-  container.innerHTML = genres.map(g => `
-    <div class="genre-row">
-      <span class="genre-name">${g.genre}</span>
-      <div class="feature-bar">
-        <div class="feature-fill" data-target="${Math.round((g.count / maxCount) * 100)}" style="width:0%"></div>
-      </div>
-      <span class="genre-avg">${g.avg_rating.toFixed(1)}★</span>
-    </div>`).join('');
-
-  animateBars(container, '.feature-fill');
-}
-
-// ─── Render: Rating distribution ─────────────────────────────────────────────
-function renderRatingDistribution(dist) {
-  const container = document.getElementById('rating-distribution');
-  if (!container || !dist) return;
-
-  const maxCount = Math.max(...Object.values(dist).map(Number), 1);
-  container.innerHTML = Object.entries(dist).map(([stars, count]) => `
-    <div class="dist-bar-wrapper">
-      <div class="dist-bar-container">
-        <div class="dist-bar" data-target="${Math.round((count / maxCount) * 100)}" style="height:0%"></div>
-      </div>
-      <span class="dist-label">${'★'.repeat(parseInt(stars))}</span>
-      <span class="dist-count">${count}</span>
-    </div>`).join('');
-
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    container.querySelectorAll('.dist-bar[data-target]').forEach(bar => {
-      bar.style.transition = 'height 0.6s ease';
-      bar.style.height = bar.dataset.target + '%';
-    });
-  }));
-}
-
-// ─── Render: Feature profile ──────────────────────────────────────────────────
-function renderFeatureProfile(profile) {
-  const container = document.getElementById('feature-profile');
-  if (!container) return;
-
-  const entries = typeof profile === 'object' ? Object.entries(profile) : [];
-  if (!entries.length) {
-    container.innerHTML = '<p class="empty-state">Rate more films to build your taste profile.</p>';
-    return;
-  }
-
-  const sorted = entries.sort((a, b) => b[1] - a[1]);
-  container.innerHTML = sorted.map(([feature, weight]) => `
-    <div class="feature-row">
-      <span class="feature-name">${feature}</span>
-      <div class="feature-bar">
-        <div class="feature-fill" data-target="${Math.round(weight * 100)}" style="width:0%"></div>
-      </div>
-      <span class="feature-pct">${Math.round(weight * 100)}%</span>
-    </div>`).join('');
-
-  animateBars(container, '.feature-fill');
-}
-
-function animateBars(container, selector) {
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    container.querySelectorAll(selector + '[data-target]').forEach(bar => {
-      bar.style.transition = 'width 0.7s ease';
-      bar.style.width = bar.dataset.target + '%';
-    });
-  }));
-}
-
-// ─── Render: Rating history ───────────────────────────────────────────────────
-async function renderRatingHistory(mockHistory, local) {
-  const container = document.getElementById('rating-history');
-  if (!container) return;
-
-  const tRaw = typeof pstore !== 'undefined' ? pstore.get('rating_timestamps') : localStorage.getItem('rating_timestamps');
-  const localTimestamps = JSON.parse(tRaw || '{}');
-
-  // Backfill missing timestamps to ensure stable sorting
-  let needsSave = false;
-  const fallbackBase = new Date(new Date().setHours(0,0,0,0)).getTime(); // Start of today
-  local.ratingIds.forEach((id, index) => {
-    if (!localTimestamps[id]) {
-      localTimestamps[id] = new Date(fallbackBase + index * 1000).toISOString();
-      needsSave = true;
-    }
-  });
-  if (needsSave) {
-    if (typeof pstore !== 'undefined') pstore.set('rating_timestamps', JSON.stringify(localTimestamps));
-    else localStorage.setItem('rating_timestamps', JSON.stringify(localTimestamps));
-  }
-
-  // Merge mock history with localStorage
-  const merged = new Map();
-  (mockHistory || []).forEach(item => merged.set(item.movie_id, item));
-  local.ratingIds.forEach(id => {
-    const rating = local.ratingsMap[id];
-    const ts = localTimestamps[id];
-    if (!merged.has(id)) {
-      merged.set(id, {
-        movie_id: id, tmdb_id: id, title: null,
-        rating: Number(rating),
-        timestamp: ts,
-      });
-    } else {
-      merged.get(id).rating = Number(rating); // localStorage overrides mock
-      if (localTimestamps[id]) {
-        merged.get(id).timestamp = localTimestamps[id]; // local timestamp overrides mock
-      }
-    }
-  });
-
-  const sorted = [...merged.values()].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-  if (!sorted.length) {
-    container.innerHTML = '<p class="empty-state">No ratings yet.</p>';
-    return;
-  }
-
-  container.innerHTML = sorted.map(item => {
-    const stars = Math.round(item.rating);
-    const dateStr = new Date(item.timestamp).toLocaleDateString('en-US', {
-      day: 'numeric', month: 'short', year: 'numeric'
-    });
-    return `
-      <div class="history-item" data-movie-id="${item.movie_id}" style="animation:cardReveal 0.3s ease both">
-        <img class="history-poster"
-             src="img/placeholder_poster.svg"
-             alt="${escapeHtml(item.title || '')}"
-             data-tmdb="${item.tmdb_id || item.movie_id}">
-        <div class="history-info">
-          <span class="history-title">${escapeHtml(item.title || `Film #${item.movie_id}`)}</span>
-          <span class="history-date">${dateStr}</span>
+  // Bar width = relative weight of each genre (visual ranking only — no raw
+  // counts shown, since the preloaded demo profile has no precise per-film ratings).
+  const max = Math.max(...top5.map(g => g.count), 1);
+  el.innerHTML = top5.map((g, i) => `
+      <li class="genre-rank-row" style="animation:cardReveal 0.3s ease both;animation-delay:${i * 40}ms">
+        <span class="genre-rank-num">${i + 1}</span>
+        <div class="genre-rank-body">
+          <span class="genre-rank-name">${escapeHtml(g.genre)}</span>
+          <div class="genre-rank-bar"><div class="genre-rank-fill" style="width:${Math.round(g.count / max * 100)}%"></div></div>
         </div>
-        <div class="history-rating" title="${item.rating}/5">
-          ${[1, 2, 3, 4, 5].map(v =>
-      `<span style="color:${v <= stars ? 'var(--star-color)' : 'var(--text-muted)'}">★</span>`
-    ).join('')}
-          <span class="history-score">${Number(item.rating).toFixed(1)}</span>
+      </li>`).join('');
+}
+
+// Standard poster card (same markup/behaviour as the home carousels: title overlay
+// fades in on hover). `badge` is optional HTML pinned on the poster.
+function _profilePosterCard(m, { badge = '', extraClass = '' } = {}) {
+  const meta = `${m.year || ''}${m.genres?.length ? ' · ' + m.genres.slice(0, 2).join(', ') : ''}`;
+  return `
+    <div class="movie-card ${extraClass}" data-movie-id="${m.movie_id}" data-tmdb="${m.tmdb_id || ''}">
+      <div class="movie-card-inner">
+        <img src="img/placeholder_poster.svg" alt="${escapeHtml(m.title || '')}" loading="lazy">
+        ${badge}
+        <div class="card-overlay">
+          <div class="card-title">${escapeHtml(m.title || '')}</div>
+          <div class="card-meta">${meta}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ─── Render: Most Watched — poster podium (top 3) ─────────────────────────────
+function renderMostWatched(movies) {
+  const section = document.getElementById('most-watched-section');
+  const podium = document.getElementById('most-watched-podium');
+  if (!section || !podium) return;
+
+  if (!movies?.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+
+  const places = ['first', 'second', 'third'];
+  const top3 = movies.slice(0, 3).map((m, i) => ({ ...m, rank: i }));
+  // Classic podium layout: 2nd · 1st · 3rd
+  const order = [top3[1], top3[0], top3[2]].filter(Boolean);
+
+  podium.innerHTML = order.map(m => {
+    const badge = `<span class="watch-badge"><i data-lucide="eye"></i> ${m.n_watched}×</span>`;
+    return `
+      <div class="poster-podium-col podium-${places[m.rank]}" style="animation:cardReveal 0.4s ease both">
+        <div class="podium-figure">
+          <span class="podium-num">${m.rank + 1}</span>
+          ${_profilePosterCard(m, { badge })}
         </div>
       </div>`;
   }).join('');
 
-  // Lazy-load TMDB posters + fix placeholder titles
-  container.querySelectorAll('[data-tmdb]').forEach(img => {
-    const tmdbId = parseInt(img.dataset.tmdb);
-    if (!tmdbId) return;
-    getMovieDetails(tmdbId).then(d => {
-      img.src = d.poster_url;
-      const titleEl = img.closest('.history-item')?.querySelector('.history-title');
-      if (titleEl && (titleEl.textContent.startsWith('Film #') || !titleEl.textContent.trim())) {
-        titleEl.textContent = d.title;
-        img.alt = d.title;
-      }
-    }).catch(() => { });
+  _wireProfilePosters(podium, movies);
+}
+
+// ─── Render: Recently Watched — horizontal rail of poster cards ───────────────
+function renderRecentlyWatched(movies) {
+  const section = document.getElementById('recently-watched-section');
+  const rail = document.getElementById('recently-watched-rail');
+  if (!section || !rail) return;
+
+  if (!movies?.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+
+  rail.innerHTML = movies.map(m => _profilePosterCard(m)).join('');
+  _wireProfilePosters(rail, movies);
+}
+
+// ─── Render: Favorite Sagas — poster podium (top 3) ───────────────────────────
+// Ranks the user's franchises by total views: for each known saga (TMDB
+// collection), sum n_watched over the films the user has actually watched.
+async function renderFavoriteSagas(mostWatched) {
+  const section = document.getElementById('fav-sagas-section');
+  const podium = document.getElementById('fav-sagas-podium');
+  if (!section || !podium) return;
+
+  const canCompute = mostWatched?.length && typeof SAGAS !== 'undefined' && typeof TMDB !== 'undefined';
+  if (!canCompute) { section.style.display = 'none'; return; }
+
+  // Fetch every saga collection, then map each member film (tmdb_id) → saga.
+  const collections = await Promise.allSettled(SAGAS.map(s => TMDB.getCollection(s.id)));
+  const tmdbToSaga = new Map();
+  SAGAS.forEach((s, i) => {
+    if (collections[i].status !== 'fulfilled') return;
+    (collections[i].value.parts || []).forEach(p => { if (p.id) tmdbToSaga.set(p.id, s); });
   });
 
-  // Click → open movie modal (clickable everywhere)
-  container.querySelectorAll('.history-item').forEach(item => {
-    item.style.cursor = 'pointer';
-    item.addEventListener('click', () => {
-      const id = parseInt(item.dataset.movieId);
-      if (!id || typeof openMovieModal !== 'function') return;
-      const tmdbId = parseInt(item.querySelector('[data-tmdb]')?.dataset.tmdb) || id;
-      openMovieModal({ movie_id: id, tmdb_id: tmdbId, title: item.querySelector('.history-title')?.textContent || '' });
+  // Accumulate the user's watch counts per saga + remember the most-watched film
+  // (its poster represents the saga on the podium).
+  const acc = new Map();
+  mostWatched.forEach(m => {
+    const saga = tmdbToSaga.get(m.tmdb_id);
+    if (!saga) return;
+    const cur = acc.get(saga.id) || { saga, views: 0, films: 0, topFilm: null, topN: -1 };
+    cur.views += m.n_watched || 0;
+    cur.films += 1;
+    if ((m.n_watched || 0) > cur.topN) { cur.topN = m.n_watched || 0; cur.topFilm = m; }
+    acc.set(saga.id, cur);
+  });
+
+  // Ranked by number of DISTINCT films watched within the saga (views break ties).
+  const top3 = [...acc.values()].sort((a, b) => b.films - a.films || b.views - a.views).slice(0, 3);
+  if (!top3.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+
+  const places = ['first', 'second', 'third'];
+  const ranked = top3.map((e, i) => ({ ...e, rank: i }));
+  const order = [ranked[1], ranked[0], ranked[2]].filter(Boolean);
+
+  podium.innerHTML = order.map(e => {
+    const f = e.topFilm || {};
+    const badge = `<span class="watch-badge"><i data-lucide="film"></i> ${e.films}</span>`;
+    return `
+      <div class="poster-podium-col podium-${places[e.rank]}" data-saga-id="${e.saga.id}"
+           style="animation:cardReveal 0.4s ease both">
+        <div class="podium-figure">
+          <span class="podium-num">${e.rank + 1}</span>
+          <div class="movie-card" data-tmdb="${f.tmdb_id || ''}">
+            <div class="movie-card-inner">
+              <img src="img/placeholder_poster.svg" alt="${escapeHtml(e.saga.name)}" loading="lazy">
+              ${badge}
+              <div class="card-overlay">
+                <div class="card-title">${escapeHtml(e.saga.name)}</div>
+                <div class="card-meta">${e.films} film${e.films > 1 ? 's' : ''} watched</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Lazy-load the representative poster + open the saga modal on click.
+  podium.querySelectorAll('.poster-podium-col').forEach(col => {
+    const sagaId = parseInt(col.dataset.sagaId);
+    const tmdbId = parseInt(col.querySelector('.movie-card')?.dataset.tmdb);
+    const img = col.querySelector('img');
+    if (tmdbId) getMovieDetails(tmdbId).then(d => { if (img) img.src = d.poster_url; }).catch(() => { });
+    col.addEventListener('click', () => {
+      const saga = SAGAS.find(s => s.id === sagaId);
+      if (saga && typeof openSagaModal === 'function') openSagaModal(saga);
     });
   });
+
+  if (typeof lucide !== 'undefined') lucide.createIcons({ root: podium });
+}
+
+// Lazy-load posters + open the shared movie modal on click.
+function _wireProfilePosters(container, movies) {
+  container.querySelectorAll('.movie-card').forEach(card => {
+    const id = parseInt(card.dataset.movieId);
+    const tmdbId = parseInt(card.dataset.tmdb) || id;
+    const img = card.querySelector('img');
+    if (tmdbId) getMovieDetails(tmdbId).then(d => { if (img) img.src = d.poster_url; }).catch(() => { });
+
+    card.addEventListener('click', () => {
+      if (typeof openMovieModal !== 'function') return;
+      const movie = movies.find(m => m.movie_id === id)
+        || { movie_id: id, tmdb_id: tmdbId, title: card.querySelector('.card-title')?.textContent || '' };
+      openMovieModal(movie);
+    });
+  });
+
+  if (typeof lucide !== 'undefined') lucide.createIcons({ root: container });
 }
 
 // ─── Render: Watchlist section ────────────────────────────────────────────────
-async function renderWatchlistSection() {
+async function renderWatchlistSection(watchlistMovies) {
   const container = document.getElementById('watchlist-grid');
   if (!container) return;
 
@@ -404,20 +438,31 @@ async function renderWatchlistSection() {
     return;
   }
 
+  // The watchlist stores MovieLens movie_ids; getMovieDetails() needs the TMDB id.
+  // The backend resolves the mapping for us → index it by movie_id so posters/titles
+  // are the RIGHT films (e.g. Lenny's wishlist), not whatever TMDB id collides.
+  const byId = new Map((watchlistMovies || []).map(m => [m.movie_id, m]));
+
   container.innerHTML = '';
 
   for (const id of ids) {
+    const meta = byId.get(id) || {};
+    const tmdbId = meta.tmdb_id || id;
+
     const card = document.createElement('div');
     card.className = 'watchlist-card';
     card.style.cursor = 'pointer';
 
-    const details = await getMovieDetails(id).catch(() => null);
+    const details = await getMovieDetails(tmdbId).catch(() => null);
+    const title = details?.title || meta.title || '';
+    const year = details?.year || meta.year || '';
+    const genres = details?.genres?.length ? details.genres : (meta.genres || []);
     card.innerHTML = `
       <div class="watchlist-card-inner" style="height:100%; position:relative;">
-        <img src="${details?.poster_url || 'img/placeholder_poster.svg'}" alt="${escapeHtml(details?.title || '')}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">
+        <img src="${details?.poster_url || 'img/placeholder_poster.svg'}" alt="${escapeHtml(title)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">
         <div class="card-overlay">
-          <div class="card-title">${escapeHtml(details?.title || '')}</div>
-          <div class="card-meta">${details?.year || ''}${(details?.genres || []).length ? ' · ' + details.genres.slice(0, 2).join(', ') : ''}</div>
+          <div class="card-title">${escapeHtml(title)}</div>
+          <div class="card-meta">${year}${genres.length ? ' · ' + genres.slice(0, 2).join(', ') : ''}</div>
           <div class="card-actions">
             <button class="btn-watchlist-card in-list btn-remove-watchlist" data-movie-id="${id}" title="Remove from list">
               <i data-lucide="check" class="wl-icon-default"></i><i data-lucide="minus" class="wl-icon-hover"></i>
@@ -437,10 +482,81 @@ async function renderWatchlistSection() {
     card.addEventListener('click', e => {
       if (e.target.closest('.btn-remove-watchlist')) return;
       if (typeof openMovieModal === 'function') {
-        openMovieModal({ movie_id: id, tmdb_id: id, title: details?.title || '' });
+        openMovieModal({ movie_id: id, tmdb_id: tmdbId, title });
       }
     });
 
     container.appendChild(card);
   }
+}
+
+// ─── Render: Rating History ───────────────────────────────────────────────────
+// Explicit star ratings made in the app (NOT the preloaded implicit ratings),
+// newest first. Updates live as the user rates. Posters/titles resolve via the
+// `rating_meta` captured at rating time (tmdb_id + title).
+function renderRatingHistory(local) {
+  const container = document.getElementById('rating-history');
+  if (!container) return;
+
+  const tRaw = typeof pstore !== 'undefined' ? pstore.get('rating_timestamps') : localStorage.getItem('rating_timestamps');
+  const timestamps = JSON.parse(tRaw || '{}');
+  const mRaw = typeof pstore !== 'undefined' ? pstore.get('rating_meta') : localStorage.getItem('rating_meta');
+  const metaMap = JSON.parse(mRaw || '{}');
+
+  // Only films rated through the app's star UI count here (those record a
+  // tmdb_id + title). Preloaded/implicit or legacy ratings have no meta, so the
+  // history stays empty until the user actually rates a film on the site.
+  const ratedIds = (local.ratingIds || []).filter(id => metaMap[id]);
+  if (!ratedIds.length) {
+    container.innerHTML = '<p class="empty-state">No ratings yet — rate a film and it\'ll show up here, newest first.</p>';
+    return;
+  }
+
+  const items = ratedIds
+    .map(id => ({
+      movie_id: id,
+      rating: Number(local.ratingsMap[id]),
+      timestamp: timestamps[id] || 0,
+      tmdb_id: metaMap[id]?.tmdb_id || null,
+      title: metaMap[id]?.title || '',
+    }))
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  container.innerHTML = items.map(item => {
+    const stars = Math.round(item.rating);
+    const dateStr = item.timestamp
+      ? new Date(item.timestamp).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+      : '';
+    return `
+      <div class="history-item" data-movie-id="${item.movie_id}" data-tmdb="${item.tmdb_id || ''}" style="animation:cardReveal 0.3s ease both">
+        <img class="history-poster" src="img/placeholder_poster.svg" alt="${escapeHtml(item.title)}" loading="lazy">
+        <div class="history-info">
+          <span class="history-title">${escapeHtml(item.title || `Film #${item.movie_id}`)}</span>
+          <span class="history-date">${dateStr}</span>
+        </div>
+        <div class="history-rating" title="${item.rating}/5">
+          ${[1, 2, 3, 4, 5].map(v => `<span style="color:${v <= stars ? 'var(--star-color)' : 'var(--text-muted)'}">★</span>`).join('')}
+        </div>
+      </div>`;
+  }).join('');
+
+  // Lazy-load posters (+ backfill any missing title) and wire the modal.
+  container.querySelectorAll('.history-item').forEach(el => {
+    const tmdbId = parseInt(el.dataset.tmdb);
+    const movieId = parseInt(el.dataset.movieId);
+    const img = el.querySelector('.history-poster');
+    if (tmdbId) {
+      getMovieDetails(tmdbId).then(d => {
+        if (img) img.src = d.poster_url;
+        const titleEl = el.querySelector('.history-title');
+        if (titleEl && (!titleEl.textContent.trim() || titleEl.textContent.startsWith('Film #'))) titleEl.textContent = d.title;
+      }).catch(() => { });
+    }
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', () => {
+      if (typeof openMovieModal === 'function') {
+        openMovieModal({ movie_id: movieId, tmdb_id: tmdbId || movieId, title: el.querySelector('.history-title')?.textContent || '' });
+      }
+    });
+  });
 }
