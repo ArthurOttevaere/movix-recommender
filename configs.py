@@ -5,6 +5,7 @@ from surprise import KNNBaseline
 class EvalConfig:
     
     models = [
+        # The commented models are not included in the evaluation.
         # ("baseline_1", ModelBaseline1, {}),  # model_name, model class, model parameters (dict)
         # ("baseline_2", ModelBaseline2, {}),
         # ("baseline_3", ModelBaseline3, {}),
