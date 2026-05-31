@@ -28,9 +28,10 @@ class EvalConfig:
         ("BPR_Novelty", ModelBPRNovelty, {"factors": 64, "learning_rate": 0.01, "regularization": 0.01, "iterations": 100, "beta": 0.2}),
         ("iALS",        ModeliALS,       {"factors": 50, "iterations": 20, "regularization": 0.01, "alpha": 40}),
 
-        ("UserBased_tuned_cosine_jaccard", UserBased_tuned, {"k": 40, "min_k": 3, "sim_options": {'name': 'cosine_jaccard', 'min_support': 5}}),
-        ("UserBased_hidden_new", UserBased_tuned, {"k": 40, "min_k": 2, "sim_options": {'name': 'pearson_baseline', 'min_support': 3}}),
+        #("UserBased_tuned_cosine_jaccard", UserBased_tuned, {"k": 40, "min_k": 3, "sim_options": {'name': 'cosine_jaccard', 'min_support': 5}}),
+        #("UserBased_hidden_new", UserBased_tuned, {"k": 40, "min_k": 2, "sim_options": {'name': 'pearson_baseline', 'min_support': 3}}),
         ("UserBased_Pearson_Natif", KNNBaseline, {"k": 40, "min_k": 2, "sim_options": {'name': 'pearson_baseline', 'user_based': True, 'min_support': 3}}),
+        ("UserBased_Jaccard_Natif", KNNBaseline, {"k": 40, "min_k": 2, "sim_options": {'name': 'jaccard', 'user_based': True, 'min_support': 3}}),
 
     ]
 
@@ -52,5 +53,5 @@ class EvalConfig:
     # Columns added to the report with suffix [ns] (negative sampling).
     neg_sampling_metrics = ["hit_rate@5",  "hit_rate@10",  "hit_rate@20",
                             "ndcg@5",      "ndcg@10",      "ndcg@20"]
-    neg_sampling_model_names = {"LatentFactor", "LatentFactorPP", "LatentFactorRanking2", "BPR", "BPR_Novelty", "iALS"}
+    neg_sampling_model_names = {"BPR", "BPR_Novelty", "iALS", "ContentBased_ridge_cv", "UserBased_Pearson_Natif", "UserBased_Jaccard_Natif"}
 
