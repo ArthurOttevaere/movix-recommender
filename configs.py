@@ -31,7 +31,7 @@ class EvalConfig:
         #("UserBased_tuned_cosine_jaccard", UserBased_tuned, {"k": 40, "min_k": 3, "sim_options": {'name': 'cosine_jaccard', 'min_support': 5}}),
         #("UserBased_hidden_new", UserBased_tuned, {"k": 40, "min_k": 2, "sim_options": {'name': 'pearson_baseline', 'min_support': 3}}),
         ("UserBased_Pearson_Natif", KNNBaseline, {"k": 40, "min_k": 2, "sim_options": {'name': 'pearson_baseline', 'user_based': True, 'min_support': 3}}),
-        ("UserBased_Jaccard_Natif", KNNBaseline, {"k": 40, "min_k": 2, "sim_options": {'name': 'jaccard', 'user_based': True, 'min_support': 3}}),
+        ("UserBased_Jaccard_Natif", KNNBaseline, {"k": 40, "min_k": 2, "sim_options": {'name': 'cosine', 'user_based': True, 'min_support': 3}}),
 
     ]
 
