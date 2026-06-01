@@ -55,6 +55,34 @@ def get_top_n(predictions, n):
 
     return top_n
 
+# Re ranking function
+def get_top_n_reranked(predictions, item_freq, alpha=0.1, n=80):
+    """
+    Retourne les top-N recommandations pour chaque utilisateur en combinant
+    la note prédite et la popularité logarithmique de l'item.
+    """
+    import math
+    rd.seed(0)
+
+    # 1. Cartographier les prédictions par utilisateur
+    top_n = defaultdict(list)
+    for uid, iid, true_r, est, _ in predictions:
+        # Calcul du score combiné
+        # item_freq.get(iid, 1) donne le nombre de fois que l'item a été vu
+        freq = item_freq.get(iid, 1)
+        score_pop = math.log1p(freq) # log(1 + freq) pour adoucir les gros écarts
+        
+        score_final = est + alpha * score_pop
+        top_n[uid].append((iid, score_final))
+
+    # 2. Trier et extraire les N meilleurs
+    for uid, user_ratings in top_n.items():
+        rd.shuffle(user_ratings)
+        user_ratings.sort(key=lambda x: x[1], reverse=True)
+        top_n[uid] = user_ratings[:n]
+
+    return top_n
+
 
 # First algorithm
 class ModelBaseline1(AlgoBase):
@@ -123,7 +151,7 @@ class LatentFactorRanking2(SVD):
 # ALS training — very fast (~30 sec on ML-100K).
 class ModeliALS(AlgoBase):
     def __init__(self, factors=50, iterations=20, regularization=0.01,
-                 alpha=40, random_state=42):
+                 alpha=40, random_state=42, rerank_popularity=False, rerank_alpha=0.1):
         AlgoBase.__init__(self)
         self.factors        = factors
         self.iterations     = iterations
@@ -131,6 +159,9 @@ class ModeliALS(AlgoBase):
         self.alpha          = alpha   # confidence scaling — Hu et al. (2008) §3: c_ui = 1 + alpha * r_ui
         self.random_state   = random_state
         self._als           = None
+        self.rerank_popularity = rerank_popularity
+        self.rerank_alpha = rerank_alpha
+
 
     def fit(self, trainset):
         AlgoBase.fit(self, trainset)
@@ -169,13 +200,15 @@ class ModeliALS(AlgoBase):
 # Optimises pairwise ranking loss: rated items ranked above unrated items.
 # RMSE/MAE are not meaningful for this model — only LOO and full-catalogue metrics matter.
 class ModelBPR(AlgoBase):
-    def __init__(self, factors=64, learning_rate=0.01, regularization=0.01, iterations=100, random_state=42):
+    def __init__(self, factors=64, learning_rate=0.01, regularization=0.01, iterations=100, random_state=42, rerank_popularity=False, rerank_alpha=0.1):
         AlgoBase.__init__(self)
         self.factors = factors
         self.learning_rate = learning_rate
         self.regularization = regularization
         self.iterations = iterations
         self.random_state = random_state
+        self.rerank_popularity = rerank_popularity
+        self.rerank_alpha = rerank_alpha
         self._bpr = None
 
     def fit(self, trainset):
@@ -215,12 +248,15 @@ class ModelBPR(AlgoBase):
 class ModelBPRNovelty(ModelBPR):
     def __init__(self, beta=0.2,
                  factors=64, learning_rate=0.01, regularization=0.01,
-                 iterations=100, random_state=42):
+                 iterations=100, random_state=42, rerank_popularity=False, rerank_alpha=0.1):
         ModelBPR.__init__(self, factors=factors, learning_rate=learning_rate,
                           regularization=regularization, iterations=iterations,
-                          random_state=random_state)
+                          random_state=random_state, rerank_popularity=False, rerank_alpha=0.1)
         self.beta = beta          # novelty weight: 0 = pure BPR, 1 = pure novelty
         self._log_pop = None      # log-popularity vector indexed by inner item id
+        self.rerank_popularity = rerank_popularity
+        self.rerank_alpha = rerank_alpha
+
 
     def fit(self, trainset):
         ModelBPR.fit(self, trainset)
@@ -275,10 +311,12 @@ class ModelBaseline5(KNNWithMeans):
 
 # User-based model
 class UserBased(AlgoBase):
-    def __init__(self, k=3, min_k=1, sim_options={}, **kwargs):
+    def __init__(self, k=3, min_k=1, sim_options={}, rerank_popularity=False, rerank_alpha=0.1,**kwargs):
         AlgoBase.__init__(self, sim_options=sim_options, **kwargs)
         self.k = k
         self.min_k = min_k
+        self.rerank_popularity = rerank_popularity
+        self.rerank_alpha = rerank_alpha
 
     def fit(self, trainset):
         AlgoBase.fit(self, trainset)
@@ -388,10 +426,13 @@ class UserBased(AlgoBase):
         
 # Content-based model        
 class ContentBased(AlgoBase):
-    def __init__(self, features_method, regressor_method, knn_k=30):
+    def __init__(self, features_method, regressor_method, knn_k=30,
+             rerank_popularity=False, rerank_alpha=0.1):
         AlgoBase.__init__(self)
         self.regressor_method = regressor_method
         self.knn_k = knn_k
+        self.rerank_popularity = rerank_popularity
+        self.rerank_alpha = rerank_alpha
         self.feature_groups = None
         self.content_features = self.create_content_features(features_method)
 
@@ -958,6 +999,24 @@ class ContentBased(AlgoBase):
                 except Exception:
                     self.user_profile[u] = None
 
+        # Reranking 
+        elif self.regressor_method == 'ridge_fixed':
+            if len(y) > 0:
+                from sklearn.linear_model import Ridge
+                from sklearn.preprocessing import StandardScaler
+                from sklearn.pipeline import make_pipeline
+                
+                # Le pipeline standardise les tags avant d'ajuster le Ridge
+                # Tu peux tester avec alpha=10.0 ou alpha=1.0
+                model = make_pipeline(
+                    StandardScaler(with_mean=False), # False car les matrices de tags sont souvent creuses
+                    Ridge(alpha=100.0, fit_intercept=True)
+                )
+                model.fit(X, y)
+                self.user_profile[u] = model
+            else:
+                self.user_profile[u] = None
+
         elif self.regressor_method in (
             'linear_regression_false', 'linear_regression_true', 'random_forest', 'ridge', 'ridge_cv', 'ridge_cv_bias',
             'ridge_cv_centered', 'ridge_knn_blend',
@@ -1104,6 +1163,21 @@ class ContentBased(AlgoBase):
 
         elif self.regressor_method == 'stacking_groups':
             return float(np.clip(self._predict_stacking(u, raw_item_id), lo, hi))
+        
+        # Reranking 
+        elif self.regressor_method == 'ridge_fixed':
+            if self.content_features is None or raw_item_id not in self.content_features.index:
+                return float(np.clip(self.user_means.get(u, self.global_mean), lo, hi))
+            
+            user_model = self.user_profile.get(u, None)
+            if user_model is None:
+                return float(np.clip(self.user_means.get(u, self.global_mean), lo, hi))
+                
+            item_features = self.content_features.loc[[raw_item_id], :].values
+            
+            # Prédiction continue directe (très dynamique pour le classement)
+            score = user_model.predict(item_features)[0]
+            return float(np.clip(score, lo, hi))
 
         return self.global_mean
 
