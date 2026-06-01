@@ -117,6 +117,8 @@ async function populateCarousel(carouselData) {
   carouselData.movies.forEach((movie, i) => {
     // Assign rank based on position when this carousel shows rank badges
     if (cardOpts.showRank) movie.rank = i + 1;
+    // Remember which model produced this row → faithful per-model explanation in the modal.
+    if (carouselData.model && movie.model == null) movie.model = carouselData.model;
 
     const card = createMovieCard(movie, cardOpts);
     _staggerCard(card, i);
@@ -143,6 +145,8 @@ function populateCarouselWithPosters(carouselData) {
   carouselData.movies.forEach((movie, i) => {
     // Assign rank based on position when this carousel shows rank badges
     if (cardOpts.showRank) movie.rank = i + 1;
+    // Remember which model produced this row → faithful per-model explanation in the modal.
+    if (carouselData.model && movie.model == null) movie.model = carouselData.model;
 
     const card = createMovieCard(movie, cardOpts);
 

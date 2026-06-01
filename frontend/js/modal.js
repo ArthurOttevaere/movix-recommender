@@ -15,6 +15,15 @@ function openMovieModal(movieMeta) {
   document.getElementById('modal-quick-meta').innerHTML = '';
   document.getElementById('modal-more-grid').innerHTML = '';
 
+  // One-line "why recommended" sentence, adapted to the model of the carousel the
+  // film was opened from (set on cards by carousel.js). Hidden when no model context.
+  const reasonEl = document.getElementById('modal-reco-reason');
+  if (reasonEl) {
+    const reason = recommendationReason(movieMeta.model);
+    reasonEl.textContent = reason || '';
+    reasonEl.style.display = reason ? '' : 'none';
+  }
+
   // Watchlist button
   const wlBtn = document.getElementById('modal-watchlist-btn');
   wlBtn.dataset.movieId = movieMeta.movie_id;
@@ -85,6 +94,18 @@ function renderModalFallback(meta) {
     <p><span class="meta-label">Year:</span> ${meta.year || '—'}</p>
     <p id="modal-saga-membership" style="display:none"></p>
   `;
+}
+
+// Short "why recommended" sentence, chosen from the model of the carousel the film
+// was opened from. Returns null when there's no model context (hero, search, etc.).
+function recommendationReason(model) {
+  if (!model) return null;
+  if (model === 'user_based') return 'Recommended because viewers with a similar taste enjoyed it.';
+  if (model === 'ials')       return 'Recommended because it fits the patterns in the films you rated.';
+  if (model === 'bpr')        return 'Recommended to help you discover something new within your taste.';
+  if (model === 'ensemble')   return 'Recommended from a blend of what matches your taste.';
+  if (model === 'content_based' || model.startsWith('genre:')) return 'Recommended because you liked similar content.';
+  return null;
 }
 
 async function loadMoreLikeThis(movieMeta) {

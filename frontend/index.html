@@ -30,7 +30,7 @@
         <li><a href="#" data-view="home" class="active">Home</a></li>
         <li><a href="#" data-view="discover">Discover</a></li>
         <li><a href="#" data-view="saga">Saga</a></li>
-        <li><a href="#" data-view="surprise">Surprise Me</a></li>
+        <li><a href="#" data-view="surprise">No Fuss</a></li>
         <li>
           <a href="#" data-view="watchlist">
             My List
@@ -178,15 +178,15 @@
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════════════════════
-       VIEW : SURPRISE ME
+       VIEW : NO FUSS
   ═══════════════════════════════════════════════════════════════════════════ -->
   <div class="view-section" id="view-surprise">
     <div class="surprise-page">
       <div class="surprise-hero">
-        <h1 class="discover-title">Surprise Me</h1>
-        <p class="discover-subtitle">Can't decide? We'll pick one you haven't seen — and are likely to love.</p>
+        <h1 class="discover-title">No Fuss</h1>
+        <p class="discover-subtitle">No need to search — we'll pick one from your recommendations you haven't seen yet.</p>
         <button class="btn-primary surprise-btn" id="surprise-btn">
-          <i data-lucide="dices"></i> Roll the dice
+          <i data-lucide="shuffle"></i> Pick one for me
         </button>
       </div>
       <div class="surprise-result" id="surprise-result"></div>
@@ -237,6 +237,7 @@
 
       <div class="modal-body">
         <div class="modal-left">
+          <p class="modal-reco-reason" id="modal-reco-reason" style="display:none"></p>
           <p class="modal-overview" id="modal-overview"></p>
         </div>
         <div class="modal-right">

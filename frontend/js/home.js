@@ -95,13 +95,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   await maybeSeedLennyWatchlist();   // pré-remplit My List avec la wishlist CSV de Lenny
   navigation.setMoviePool(allMoviesPool);
 
-  // Vivier « Surprise me » : UNIQUEMENT les modèles qui prédisent une NOTE sur
-  // l'échelle 0.5–5 (content/svd/user_based) → leur `score` normalisé est un vrai
-  // % de match avec les ratings de l'utilisateur. On affiche systématiquement le
-  // score content-based (le modèle « basé sur vos goûts ») quand le film y figure,
-  // et on n'agrège JAMAIS via un max inter-modèles ni via les carrousels de genre
-  // (score moyenné) → jamais de % « sorti de nulle part ».
-  const RATING_MODELS = new Set(['content_based', 'svd', 'user_based']);
+  // Vivier « No Fuss » : UNIQUEMENT les films recommandés sur la page d'accueil par
+  // les 4 modèles (content_based, user_based, iALS, BPR) — aucun autre film (pas de
+  // SVD, pas de carrousels de genre). On affiche en priorité le score content-based
+  // (le modèle « basé sur vos goûts ») quand le film y figure ; sinon le `score`
+  // normalisé du modèle → jamais de % « sorti de nulle part ».
+  const HOME_MODELS = new Set(['content_based', 'user_based', 'ials', 'bpr']);
   const contentScore = new Map(
     (data.carousels.find(c => c.model === 'content_based')?.movies || [])
       .filter(m => m && typeof m.score === 'number')
@@ -109,12 +108,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   );
   const surpriseSeen = new Map();
   for (const c of data.carousels) {
-    if (!RATING_MODELS.has(c.model)) continue;
+    if (!HOME_MODELS.has(c.model)) continue;
     for (const m of (c.movies || [])) {
       if (!m || m.movie_id == null) continue;
       const genuine = contentScore.has(m.movie_id)
         ? contentScore.get(m.movie_id)                                  // match content-based (canonique)
-        : (typeof m.score === 'number' ? m.score : null);              // sinon note prédite svd/user_based
+        : (typeof m.score === 'number' ? m.score : null);              // sinon score normalisé user_based/iALS/BPR
       if (genuine == null) continue;
       if (!surpriseSeen.has(m.movie_id) || contentScore.has(m.movie_id)) {
         surpriseSeen.set(m.movie_id, { ...m, score: genuine, _genuineMatch: true });
@@ -560,7 +559,7 @@ function renderDiscoverContent() {
   }
 }
 
-// ─── Surprise Me view ────────────────────────────────────────────────────────
+// ─── No Fuss view ────────────────────────────────────────────────────────────
 async function initSurpriseView() {
   if (surpriseInit) return;
   surpriseInit = true;
@@ -568,10 +567,10 @@ async function initSurpriseView() {
   rollSurprise();
 }
 
-// Candidats « Surprise me » : films non vus dont le `score` est garanti être un
-// VRAI match avec les ratings de l'utilisateur (note prédite content/svd/user_based,
-// cf. surpriseCandidatesData construit au chargement). On exclut les films déjà
-// notés/vus et on trie par match décroissant.
+// Candidats « No Fuss » : films non vus issus des recommandations de la page
+// d'accueil (content_based, user_based, iALS, BPR — cf. surpriseCandidatesData
+// construit au chargement). On exclut les films déjà notés/vus et on trie par
+// match décroissant.
 function buildSurpriseCandidates() {
   const ratings = JSON.parse(pstore.get('ratings') || '{}');
   const ratedIds = new Set(Object.keys(ratings).map(Number));
@@ -583,7 +582,7 @@ function buildSurpriseCandidates() {
 // Tirage : on reste DANS les meilleurs matchs (top ~40 %) pour que le film
 // proposé plaise vraiment — le but est de faire gagner du temps, pas de sortir
 // une curiosité au hasard — mais on pondère par le score et on évite le dernier
-// tirage, donc chaque lancer reste une vraie surprise.
+// tirage, donc chaque clic propose un film différent sans avoir à chercher.
 function pickSurprise(candidates) {
   if (!candidates.length) return null;
   const windowSize = Math.min(40, Math.max(8, Math.ceil(candidates.length * 0.4)));
@@ -618,29 +617,13 @@ async function rollSurprise() {
     setTimeout(() => btn.classList.remove('rolling'), 760);
   }
 
-  // 1) Cas nominal : tirer parmi les recommandations personnalisées (films non vus
-  //    que l'utilisateur va aimer). C'est le rôle attendu du « Surprise me ».
-  let movie = pickSurprise(buildSurpriseCandidates());
-
-  // 2) Repli cold-start (aucune reco perso dispo) : pépite TMDB bien notée.
-  if (!movie) {
-    try {
-      const randomGenre = DISCOVER_GENRES[Math.floor(Math.random() * DISCOVER_GENRES.length)];
-      const page = 1 + Math.floor(Math.random() * 5);
-      const results = await TMDB.discoverByGenre({
-        genres: [randomGenre.tmdb],
-        sort_by: 'vote_average.desc',
-        vote_count_gte: 300,
-        vote_count_lte: 5000,
-        page,
-      });
-      const pool = results.map(r => TMDB.parseLite(r));
-      if (pool.length) movie = pool[Math.floor(Math.random() * pool.length)];
-    } catch { /* ignore */ }
-  }
+  // On tire EXCLUSIVEMENT parmi les recommandations de la page d'accueil (films non
+  // vus que l'utilisateur va aimer) — aucun film d'une autre source (pas de repli
+  // TMDB). C'est le rôle du « No Fuss » : choisir pour l'utilisateur sans chercher.
+  const movie = pickSurprise(buildSurpriseCandidates());
 
   if (!movie) {
-    result.innerHTML = '<p class="empty-state">Nothing to surprise you with right now.</p>';
+    result.innerHTML = '<p class="empty-state">Nothing to recommend right now.</p>';
     return;
   }
 
@@ -673,7 +656,7 @@ async function rollSurprise() {
           <p class="surprise-overview">${escapeHtml((details?.overview || '').slice(0, 280))}</p>
           <div class="surprise-actions">
             <button class="btn-primary" id="surprise-open"><i data-lucide="play"></i> Play</button>
-            <button class="btn-secondary" id="surprise-reroll"><i data-lucide="dices"></i> Try another</button>
+            <button class="btn-secondary" id="surprise-reroll"><i data-lucide="shuffle"></i> Try another</button>
           </div>
         </div>
       </div>`;
