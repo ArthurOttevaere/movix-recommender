@@ -1,4 +1,5 @@
 scikit-surprise==1.1.4
+implicit>=0.7.0
 numpy<2.0
 pandas
 scikit-learn

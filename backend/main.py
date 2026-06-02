@@ -1,8 +1,3 @@
-"""
-Serveur FastAPI — ne pas modifier ce fichier.
-Implémentez votre modèle dans backend/models/content.py ou userbased.py.
-"""
-
 import asyncio
 from collections import Counter
 from contextlib import asynccontextmanager
@@ -25,7 +20,7 @@ from backend.store import (
 )
 
 
-# ─── Démarrage ───────────────────────────────────────────────────────────────
+# ─── Launching ───────────────────────────────────────────────────────────────
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -38,11 +33,12 @@ app = FastAPI(title="Cinematch API", lifespan=lifespan)
 
 
 # ─── Anti-cache (dev) ────────────────────────────────────────────────────────
-# StaticFiles n'envoie aucun Cache-Control : le navigateur applique alors un cache
-# heuristique et ressert un vieux HTML/JS sans revalider. Après un redémarrage du
-# serveur (ou une modif de code), l'ancien JS en cache reste chargé → page qui
-# "charge à l'infini" tant qu'on n'a pas vidé le cache à la main. On force donc le
-# navigateur à toujours récupérer la version fraîche.
+# StaticFiles doesn't send any Cache-Control headers: the browser then applies a heuristic cache
+# and serves an old HTML/JS without revalidating. After a restart of the
+# server (or a code modification), the old JS in cache remains loaded → page that
+# "loads infinitely" until the cache is manually cleared. We therefore force the
+# browser to always fetch the fresh version.
+
 @app.middleware("http")
 async def no_cache(request: Request, call_next):
     response = await call_next(request)
@@ -52,12 +48,12 @@ async def no_cache(request: Request, call_next):
     return response
 
 
-# ─── Helpers internes ────────────────────────────────────────────────────────
+# ─── Helpers ────────────────────────────────────────────────────────
 
 def _require_user(token: str) -> UserProfile:
     user = get_user(token)
     if user is None:
-        raise HTTPException(status_code=404, detail="Token invalide ou inconnu.")
+        raise HTTPException(status_code=404, detail="Invalid Token or unknown.")
     return user
 
 
@@ -204,12 +200,12 @@ def _build_profile_stats(user: UserProfile) -> dict:
 # ─── Onboarding ──────────────────────────────────────────────────────────────
 
 # Onboarding : vivier de films reconnaissables PAR époque, puis sélection
-# farthest-first (espace latent iALS) SOUS QUOTAS d'époque → les graines
-# couvrent à la fois la diversité de goût (informatif pour les modèles) ET un
-# mélange d'années réaliste (sinon la popularité = notes cumulées enterre les
-# films récents et le médian des graines retombe vers ~1993).
-ONBOARDING_POOL_PER_ERA = 150   # films les plus notés retenus par époque (reconnaissables)
-ONBOARDING_ERAS = [             # (label, année_min, année_max_exclue, quota)
+# farthest-first (espace latent iALS) SOUS QUOTAS d'époque → the seeds
+# cover both taste diversity and a realistic mix of years (otherwise popularity = accumulated ratings bury
+# recent films and the median of seeds drops to ~1993).
+
+ONBOARDING_POOL_PER_ERA = 150   # most rated movies per era (recognizable)
+ONBOARDING_ERAS = [             # (label, year_min, year_max_exclue, quota)
     ("Pre-1980", 0,    1980, 4),
     ("1980s",    1980, 1990, 6),
     ("1990s",    1990, 2000, 8),
@@ -217,29 +213,29 @@ ONBOARDING_ERAS = [             # (label, année_min, année_max_exclue, quota)
     ("2010s",    2010, 9999, 11),
 ]
 ONBOARDING_N = sum(q for *_, q in ONBOARDING_ERAS)  # 40
-ONBOARDING_BRANCH = 6           # à chaque pas, on tire au hasard parmi les N films les
-                                # plus éloignés → l'onboarding varie d'une fois à l'autre
-                                # sans sacrifier la dispersion (donc reste optimal)
+ONBOARDING_BRANCH = 6           # at each step, we randomly select from the N most distant films
+                                # → onboarding varies from one session to another
+                                # without sacrificing the dispersion (so it remains optimal)
 
 
 def _select_onboarding_seeds() -> list[tuple[int, float]]:
-    """Graines d'onboarding équilibrées par époque ET diverses en goût.
+    """Onboarding seeds balanced per era and diverse in taste.
 
-    1. Vivier reconnaissable = les `POOL_PER_ERA` films les plus notés de chaque
-       époque (la popularité globale favorisant les vieux films, on l'applique
-       *à l'intérieur* de chaque époque pour faire remonter des films récents).
-    2. Traversée farthest-first (k-center) dans l'espace latent iALS avec un quota
-       par époque : on choisit à chaque pas le film le plus éloigné (direction de
-       goût, distance cosinus) des graines déjà prises, en désactivant une époque
-       dès que son quota est atteint. → dispersion maximale du goût *sous* la
-       contrainte d'un mélange d'années.
+    1. Recognizable pool = the `POOL_PER_ERA` most rated movies of each
+       era (global popularity favoring old films, we apply it
+       *within* each era to bring up recent films).
+    2. Farthest-first traversal (k-center) in the latent iALS space with a quota
+       per era : we choose at each step the film the most distant (taste direction,
+       cosine distance) from the seeds already taken, while disabling an era
+       as soon as its quota is reached. → maximum taste dispersion *under* the
+       constraint of a realistic mix of years.
 
-    Repli sur [] si les facteurs iALS sont indisponibles (le caller complète alors
-    par popularité).
+    Fallback to [] if the iALS factors are unavailable (the caller then completes
+    with popularity).
     """
-    all_pop = utils.popular_movies(20000, exclude_ids=None)  # tout le catalogue, trié par popularité
+    all_pop = utils.popular_movies(20000, exclude_ids=None)  # all the catalog, sorted by popularity
 
-    # 1. Vivier par époque + table movie_id → index d'époque + quotas
+    # 1. Recognizable pool per era + movie_id → era index + quotas
     candidates: list[tuple[int, float]] = []
     era_of: dict[int, int] = {}
     quota: dict[int, int] = {}
@@ -266,12 +262,12 @@ def _select_onboarding_seeds() -> list[tuple[int, float]]:
     scores = np.array([score_by_id[mid] for mid in found_ids])
     n = len(found_ids)
 
-    # 2. Farthest-first RANDOMISÉ sous quotas d'époque.
-    #    Randomisation (rng sans graine → varie à chaque appel) : départ tiré parmi
-    #    les films les plus populaires, puis à chaque pas on tire au hasard parmi
-    #    les ONBOARDING_BRANCH films les plus éloignés des graines déjà prises. La
-    #    dispersion reste donc élevée (on choisit toujours parmi les plus éloignés)
-    #    mais la sélection diffère d'une session à l'autre.
+    # 2. Farthest-first randomised under era quotas.
+    #    Randomisation (rng without seed → varies at each call) : departure chosen from
+    #    the most popular films, then at each step we randomly select from
+    #    the ONBOARDING_BRANCH most distant films from the already selected seeds. The
+    #    dispersion remains high (we always choose from the most distant)
+    #    but the selection varies from one session to another.
     rng = np.random.default_rng()
     avail = np.ones(n, dtype=bool)
     min_dist = np.full(n, np.inf)
@@ -283,10 +279,10 @@ def _select_onboarding_seeds() -> list[tuple[int, float]]:
         avail[i] = False
         e = int(eidx[i])
         filled[e] += 1
-        if filled[e] >= quota[e]:        # quota atteint → on retire toute l'époque
+        if filled[e] >= quota[e]:        # quota reached → the era is removed
             avail[eidx == e] = False
 
-    # Départ : au hasard parmi les ~15 candidats les plus populaires (reconnaissables)
+    # Departure : at random among the ~15 most popular candidates (recognizable)
     pop_order = np.argsort(-scores)
     start = int(rng.choice(pop_order[:min(15, n)]))
     _take(start)
@@ -304,11 +300,11 @@ def _select_onboarding_seeds() -> list[tuple[int, float]]:
 
 @app.get("/onboarding/movies")
 def onboarding_movies():
-    """Retourne 40 films reconnaissables, couvrant des goûts variés ET un mélange
-    d'époques (diversité latente iALS sous quotas d'époque)."""
+    """Return 40 recognizable films, covering diverse tastes AND a realistic mix
+    of eras (latent iALS diversity under era quotas)."""
     selected = _select_onboarding_seeds()
 
-    # Repli / complétion par popularité si iALS indisponible ou pas assez de films.
+    
     if len(selected) < ONBOARDING_N:
         seen = {mid for mid, _ in selected}
         for mid, score in utils.popular_movies(ONBOARDING_N * 4, exclude_ids=None):
@@ -322,7 +318,7 @@ def onboarding_movies():
 
 
 class OnboardingSubmitBody(BaseModel):
-    ratings: dict[str, float]  # clés en string (JSON)
+    ratings: dict[str, float]  # keys as strings (JSON)
 
 
 @app.post("/onboarding/submit")
@@ -366,7 +362,7 @@ async def get_recommendations(token: str):
     ials_recs     = safe(results[2])
     bpr_recs      = safe(results[3])
 
-    # Ensemble : interleave les 2 modèles, dédupliqué
+    # Ensemble : interleave the 2 models, deduplicated
     seen: set[int] = set()
     ensemble: list[tuple[int, float]] = []
     for pairs in (content_recs, ub_recs):
@@ -375,7 +371,7 @@ async def get_recommendations(token: str):
                 seen.add(mid)
                 ensemble.append((mid, score))
 
-    # Hero : meilleur film du content-based
+    # Hero : best film from the content-based model
     hero_mid, hero_score = content_recs[0]
     hero = utils.movie_to_dict(hero_mid, hero_score, ratings, user.watchlist)
     hero["backdrop_url"] = None
@@ -427,16 +423,16 @@ async def get_recommendations(token: str):
     }
 
 
-# ─── Films similaires (More Like This) ───────────────────────────────────────
+# ─── Similar movies (More Like This) ───────────────────────────────────────
 
 @app.get("/similar/{movie_id}")
 def similar_movies(movie_id: int):
-    """Films proches de `movie_id` selon le modèle content-based (item-item)."""
+    """Similar movies to `movie_id` based on the content-based (item-item) model."""
     pairs = content.similar_items(movie_id, 12)
     return {"movies": [utils.movie_to_dict(mid, score, {}, []) for mid, score in pairs]}
 
 
-# ─── Notation ────────────────────────────────────────────────────────────────
+# ─── Rating ────────────────────────────────────────────────────────────────
 
 class RateBody(BaseModel):
     user_token: str
@@ -448,7 +444,7 @@ class RateBody(BaseModel):
 def rate_movie(body: RateBody):
     user = _require_user(body.user_token)
     if not (0.5 <= body.rating <= 5.0):
-        raise HTTPException(status_code=422, detail="Rating doit être entre 0.5 et 5.0.")
+        raise HTTPException(status_code=422, detail="Rating must be between 0.5 and 5.0.")
     is_new = update_rating(user, body.movie_id, body.rating)
     return {"status": "ok", "profile_updated": is_new}
 
@@ -468,7 +464,7 @@ def update_watchlist_endpoint(body: WatchlistBody):
     return {"status": "ok"}
 
 
-# ─── Profil ──────────────────────────────────────────────────────────────────
+# ─── Profile ──────────────────────────────────────────────────────────────────
 
 @app.get("/profile/{token}")
 def get_profile(token: str):
@@ -476,7 +472,7 @@ def get_profile(token: str):
     return _build_profile_stats(user)
 
 
-# ─── Serving du frontend (doit rester EN DERNIER) ────────────────────────────
+# ─── Serving of frontend (must be last) ────────────────────────────
 
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 if FRONTEND_DIR.exists():

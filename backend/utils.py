@@ -20,8 +20,8 @@ def load_shared_artifacts() -> None:
     for fname in ("movies.csv", "links.csv", "popularity.csv"):
         if not (ARTIFACTS_DIR / fname).exists():
             raise RuntimeError(
-                f"Artifact manquant : backend/artifacts/{fname}\n"
-                "Lancez d'abord : python backend/generate_artifacts.py"
+                f"Missing artifact : backend/artifacts/{fname}\n"
+                "Launch first : python backend/generate_artifacts.py"
             )
 
     _movies_df = pd.read_csv(ARTIFACTS_DIR / "movies.csv").set_index("movieId")
@@ -29,7 +29,7 @@ def load_shared_artifacts() -> None:
     _popularity = pd.read_csv(
         ARTIFACTS_DIR / "popularity.csv", index_col="movieId"
     )["rating_count"]
-    print(f"[utils] {len(_movies_df)} films, {len(_links_df)} liens TMDB chargés.")
+    print(f"[utils] {len(_movies_df)} films, {len(_links_df)} TMDB links loaded.")
 
 
 def normalize_score(raw: float) -> float:

@@ -1,16 +1,16 @@
 """
-Script de génération des artefacts partagés.
+Script for the generation of shared artifacts from the raw data.
 
-Lancez depuis la racine du repo :
+Run from the root of the repo :
     python backend/generate_artifacts.py
 
-Génère dans backend/artifacts/ :
+Generates in backend/artifacts/ :
     movies.csv      — movieId, title, genres
-    links.csv       — movieId, tmdbId (NaN exclus, tmdbId converti en int)
-    popularity.csv  — movieId, rating_count (trié décroissant)
+    links.csv       — movieId, tmdbId (NaN exclus, tmdbId converted in int)
+    popularity.csv  — movieId, rating_count (sorted in descending order)
 
-Chaque personne génère ensuite ses propres artefacts de modèle
-depuis son notebook (voir les docstrings dans backend/models/).
+Each person then generates their own model artifacts
+from their notebook (see the docstrings in backend/models/).
 """
 
 from pathlib import Path
@@ -25,8 +25,8 @@ OUT = Path(__file__).parent / "artifacts"
 def main():
     if not HACKATHON.exists():
         raise SystemExit(
-            f"Dossier data/ introuvable : {HACKATHON}\n"
-            "Assurez-vous d'avoir décompressé les données (python unzip_data.py)."
+            f"Data folder/ not found : {HACKATHON}\n"
+            "Make sure you have decompressed the data (python unzip_data.py)."
         )
 
     OUT.mkdir(exist_ok=True)
@@ -36,14 +36,14 @@ def main():
     movies.to_csv(OUT / "movies.csv", index=False)
     print(f"movies.csv      : {len(movies):>6} films")
 
-    # links.csv — ne garder que movieId et tmdbId valides
+    # links.csv — keep only valid movieId and tmdbId
     links = pd.read_csv(HACKATHON / "content" / "links.csv")[["movieId", "tmdbId"]]
     links = links.dropna(subset=["tmdbId"]).copy()
     links["tmdbId"] = links["tmdbId"].astype(int)
     links.to_csv(OUT / "links.csv", index=False)
-    print(f"links.csv       : {len(links):>6} films avec tmdb_id")
+    print(f"links.csv       : {len(links):>6} films with tmdb_id")
 
-    # popularity.csv — nombre de ratings par film
+    # popularity.csv — number of ratings per film
     ratings = pd.read_csv(HACKATHON / "evidence" / "ratings.csv")
     popularity = (
         ratings.groupby("movieId")
@@ -54,8 +54,8 @@ def main():
     popularity.to_csv(OUT / "popularity.csv", index=False)
     print(f"popularity.csv  : {len(popularity):>6} films")
 
-    print(f"\nArtefacts partagés générés dans {OUT.resolve()}/")
-    print("Chaque personne génère ses artefacts de modèle depuis son notebook.")
+    print(f"\nShared artifacts generated in {OUT.resolve()}/")
+    print("Each person then generates their own model artifacts from their notebook.")
 
 
 if __name__ == "__main__":

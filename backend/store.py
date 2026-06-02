@@ -10,8 +10,8 @@ class UserProfile:
     ratings: dict = field(default_factory=dict)            # {int(movie_id): float(rating 0.5–5.0)}
     watchlist: list = field(default_factory=list)          # [int(movie_id)]
     rating_timestamps: dict = field(default_factory=dict)  # {int(movie_id): datetime}
-    most_watched: list = field(default_factory=list)       # [(int(movie_id), int(n_watched))] desc — démo Lenny
-    recent_ids: list = field(default_factory=list)         # [int(movie_id)] vus récemment — démo Lenny
+    most_watched: list = field(default_factory=list)       # [(int(movie_id), int(n_watched))] desc — demo Lenny
+    recent_ids: list = field(default_factory=list)         # [int(movie_id)] recently watched — demo Lenny
     created_at: datetime = field(default_factory=datetime.utcnow)
 
 
@@ -19,23 +19,17 @@ _STORE: dict[str, UserProfile] = {}
 
 
 # ─── Profil démo « Lenny » ────────────────────────────────────────────────────
-# Pour la démo (live ou enregistrée), l'onboarding « nouvel utilisateur » à 5 films
-# donne un signal trop faible. On expose donc un profil pré-chargé avec de vraies
-# préférences : la bibliothèque personnelle de Lenny (library_lenny.csv) convertie
-# en ratings implicites via recommender_building.compute_implicit_ratings (cf. PDF,
-# section 5). Le front propose ce profil dans l'écran « Who's watching? » sous un
-# token fixe ; tous les modèles backend (content/userbased/ials/bpr) calculent
-# alors leurs recommandations à la volée à partir de ces ratings riches.
-#
-# main.py n'est PAS modifié : le profil est matérialisé paresseusement à la
-# première résolution de get_user(LENNY_TOKEN). Si la lib est introuvable, on
-# échoue silencieusement (le profil n'apparaît simplement pas côté serveur).
+# For the demo (live or recorded), the onboarding « new user » with 5 films
+# gives a too weak signal. We therefore expose a pre-loaded profile with real
+# preferences : Lenny's personal library (library_lenny.csv) converted
+# into implicit ratings via recommender_building.compute_implicit_ratings.
+
 LENNY_TOKEN = "lenny-demo-token"
 _LIBRARY_LENNY = Path(__file__).resolve().parent.parent / "library_lenny.csv"
 
 
 def _build_lenny() -> "UserProfile | None":
-    """Construit le profil Lenny depuis library_lenny.csv (idempotent, défensif)."""
+    """Constructs the Lenny profile from library_lenny.csv (idempotent, defensive)."""
     try:
         from recommender_building import compute_implicit_ratings
 
@@ -51,10 +45,10 @@ def _build_lenny() -> "UserProfile | None":
     if not ratings:
         return None
 
-    # Lecture des colonnes signalétiques du CSV (une seule passe) :
-    #   wishlist  → pré-remplit « My List »          (binaire 1/0)
-    #   n_watched → top « Most Watched »             (compteur de visionnages)
-    #   recent    → carrousel « Recently Watched »   (binaire 1/0)
+    # Reading of the CSV signal columns (single pass) :
+    #   wishlist  → pre-fills « My List »          (binary 1/0)
+    #   n_watched → top « Most Watched »             (counter of viewings)
+    #   recent    → carousel « Recently Watched »   (binary 1/0)
     watchlist: list[int] = []
     most_watched: list[tuple[int, int]] = []
     recent_ids: list[int] = []
@@ -73,7 +67,7 @@ def _build_lenny() -> "UserProfile | None":
 
         recent_ids = [int(m) for m in lib.loc[lib["recent"] == 1, "movie_id"]]
     except Exception as exc:
-        print(f"[store] colonnes biblio Lenny indisponibles : {exc}")
+        print(f"[store] columns Lenny's library unavailable : {exc}")
 
     now = datetime.utcnow()
     user = UserProfile(
@@ -87,8 +81,8 @@ def _build_lenny() -> "UserProfile | None":
     )
     _STORE[LENNY_TOKEN] = user
     print(
-        f"[store] profil démo Lenny chargé ({len(ratings)} notés, "
-        f"{len(watchlist)} wishlist, {len(most_watched)} vus, {len(recent_ids)} récents)."
+        f"[store] demo profile Lenny loaded ({len(ratings)} rated, "
+        f"{len(watchlist)} in wishlist, {len(most_watched)} watched, {len(recent_ids)} recently watched)."
     )
     return user
 
@@ -109,7 +103,7 @@ def create_user(initial_ratings: dict[int, float]) -> UserProfile:
 def get_user(token: str) -> UserProfile | None:
     user = _STORE.get(token)
     if user is None and token == LENNY_TOKEN:
-        user = _build_lenny()  # matérialisation paresseuse du profil démo
+        user = _build_lenny()  
     return user
 
 
