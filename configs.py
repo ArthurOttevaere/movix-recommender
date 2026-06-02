@@ -22,17 +22,21 @@ class EvalConfig:
         # ("LatentFactorPP", LatentFactorPP, {}),       # results already available
         # ("LatentFactorRanking2", LatentFactorRanking2, {}),  # results already available
 
-        ("ContentBased_ridge_cv", ContentBased, {"features_method": "all_content_tmdb_tags2000", "regressor_method": "ridge_cv", "rerank_popularity": True, "rerank_alpha": 0.1}),
-        ("ContentBased_Ridge_Fixed_rerank_a005", ContentBased, {"features_method": "all_content_tmdb_tags2000", "regressor_method": "ridge_fixed", "rerank_popularity": True, "rerank_alpha": 0.05 }),
+        # For the models below, no reranking applied 
+        ("ContentBased_ridge_cv", ContentBased, {"features_method": "all_content_tmdb_tags2000", "regressor_method": "ridge_cv", "rerank_popularity": False, "rerank_alpha": 0.1}),
+        #("ContentBased_Ridge_Fixed_rerank_a005", ContentBased, {"features_method": "all_content_tmdb_tags2000", "regressor_method": "ridge_fixed", "rerank_popularity": True, "rerank_alpha": 0.05 }),
 
-        ("BPR",         ModelBPR,        {"factors": 64, "learning_rate": 0.01, "regularization": 0.01, "iterations": 100, "rerank_popularity": True, "rerank_alpha": 0.1}),
-        ("BPR_Novelty", ModelBPRNovelty, {"factors": 64, "learning_rate": 0.01, "regularization": 0.01, "iterations": 100, "beta": 0.2, "rerank_popularity": True, "rerank_alpha": 0.1}),
-        ("iALS",        ModeliALS,       {"factors": 50, "iterations": 20, "regularization": 0.01, "alpha": 40, "rerank_popularity": True, "rerank_alpha": 0.1}),
+        ("BPR",         ModelBPR,        {"factors": 64, "learning_rate": 0.01, "regularization": 0.01, "iterations": 100, "rerank_popularity": False, "rerank_alpha": 0.1}),
+        ("BPR_Novelty", ModelBPRNovelty, {"factors": 64, "learning_rate": 0.01, "regularization": 0.01, "iterations": 100, "beta": 0.2, "rerank_popularity": False, "rerank_alpha": 0.1}),
+        ("iALS",        ModeliALS,       {"factors": 50, "iterations": 20, "regularization": 0.01, "alpha": 40, "rerank_popularity": False, "rerank_alpha": 0.1}),
 
+        # For the models below, reranking is applied with alpga = 0.5
         #("UserBased_tuned_cosine_jaccard", UserBased_tuned, {"k": 40, "min_k": 3, "sim_options": {'name': 'cosine_jaccard', 'min_support': 5}}),
         #("UserBased_hidden_new", UserBased_tuned, {"k": 40, "min_k": 2, "sim_options": {'name': 'pearson_baseline', 'min_support': 3}}),
-        ("UserBased_Pearson_Natif", KNNBaseline, {"k": 40, "min_k": 2, "sim_options": {'name': 'pearson_baseline', 'user_based': True, 'min_support': 3}, "rerank_popularity": True, "rerank_alpha": 0.1}),
-        ("UserBased_Jaccard_Natif", KNNBaseline, {"k": 40, "min_k": 2, "sim_options": {'name': 'cosine', 'user_based': True, 'min_support': 3},"rerank_popularity": True, "rerank_alpha": 0.1}),
+        ("UserBased_Pearson_Natif", KNNBaseline, {"k": 40, "min_k": 2, "sim_options": {'name': 'pearson_baseline', 'user_based': True, 'min_support': 3}, "rerank_popularity": True, "rerank_alpha": 0.5}),
+        ("UserBased_Tuned_Jaccard", UserBased_tuned, {"k": 40, "min_k": 2, "sim_options": {'name': 'jacard', 'user_based': True, 'min_support': 3}, "rerank_popularity": True, "rerank_alpha": 0.5}),
+        #("UserBased_Jaccard_Natif", KNNBaseline, {"k": 40, "min_k": 2, "sim_options": {'name': 'cosine', 'user_based': True, 'min_support': 3},"rerank_popularity": True, "rerank_alpha": 0.5}),
+        
 
     ]
 
@@ -54,5 +58,5 @@ class EvalConfig:
     # Columns added to the report with suffix [ns] (negative sampling).
     neg_sampling_metrics = ["hit_rate@5",  "hit_rate@10",  "hit_rate@20",
                             "ndcg@5",      "ndcg@10",      "ndcg@20"]
-    neg_sampling_model_names = {"BPR", "BPR_Novelty", "iALS", "ContentBased_ridge_cv", "UserBased_Pearson_Natif", "UserBased_Jaccard_Natif", "ContentBased_Ridge_Fixed_rerank_a005"}
+    neg_sampling_model_names = {"BPR", "BPR_Novelty", "iALS", "ContentBased_ridge_cv", "UserBased_Pearson_Natif", "UserBased_Tuned_Jaccard"}
 

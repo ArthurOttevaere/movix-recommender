@@ -58,24 +58,24 @@ def get_top_n(predictions, n):
 # Re ranking function
 def get_top_n_reranked(predictions, item_freq, alpha=0.1, n=80):
     """
-    Retourne les top-N recommandations pour chaque utilisateur en combinant
-    la note prédite et la popularité logarithmique de l'item.
+    Returns the top-N recommendations for each user by combining
+    the predicted rating and the logarithmic popularity of the item.
     """
     import math
     rd.seed(0)
 
-    # 1. Cartographier les prédictions par utilisateur
+    # 1. Map the predictions by user
     top_n = defaultdict(list)
     for uid, iid, true_r, est, _ in predictions:
-        # Calcul du score combiné
-        # item_freq.get(iid, 1) donne le nombre de fois que l'item a été vu
+        # Compute the combined score
+        # item_freq.get(iid, 1) gives the number of times the item has been viewed
         freq = item_freq.get(iid, 1)
-        score_pop = math.log1p(freq) # log(1 + freq) pour adoucir les gros écarts
+        score_pop = math.log1p(freq) # log(1 + freq) to smooth out large differences
         
         score_final = est + alpha * score_pop
         top_n[uid].append((iid, score_final))
 
-    # 2. Trier et extraire les N meilleurs
+    # 2. Sort and extract the N best
     for uid, user_ratings in top_n.items():
         rd.shuffle(user_ratings)
         user_ratings.sort(key=lambda x: x[1], reverse=True)
@@ -125,23 +125,6 @@ class ModelBaseline3(AlgoBase):
 class ModelBaseline4(SVD):
     def __init__(self, random_state=1):
         SVD.__init__(self, n_factors=100, random_state=random_state)
-
-# Latent Factor — hyperparameters tuned via GridSearchCV (latent_factor.ipynb)
-class LatentFactor(SVD):
-    def __init__(self, random_state=1):
-        SVD.__init__(self, n_factors=150, n_epochs=30, lr_all=0.01, reg_all=0.1, random_state=random_state)
-
-# SVD++ — extends SVD by integrating implicit feedback (all rated items, regardless of rating value)
-# Hyperparameters: Koren, Y. (2008). Factorization meets the neighborhood. KDD '08, pp. 426-434.
-class LatentFactorPP(SVDpp):
-    def __init__(self, random_state=1):
-        SVDpp.__init__(self, n_factors=20, n_epochs=20, lr_all=0.007, reg_all=0.02, random_state=random_state)
-
-# SVD ranking v2 — hyperparameters from ranking-oriented GridSearchCV (latent_factor.ipynb §4c)
-# n_factors=20 + reg_all=0.01: best RMSE(0.828)/coverage trade-off — reg halved vs v1.
-class LatentFactorRanking2(SVD):
-    def __init__(self, random_state=1):
-        SVD.__init__(self, n_factors=20, n_epochs=30, lr_all=0.005, reg_all=0.01, random_state=random_state)
 
 
 # iALS — Weighted Regularized Matrix Factorization (WRMF)
@@ -410,13 +393,13 @@ class UserBased(AlgoBase):
                 
                 if support >= min_support:
                     if sim_name == 'msd':
-                        # Ta logique MSD actuelle
+                        # Logique MSD : 1 / (1 + mean squared difference)
                         sq_diff = np.sum((row_i[mask_intersection] - row_j[mask_intersection])**2)
                         msd = sq_diff / support
                         similarity = 1 / (msd + 1)
                     
                     elif sim_name == 'jacard':
-                        # Logique Jaccard : intersection / union
+                        # Jaccard Logic : intersection / union
                         mask_union = ~np.isnan(row_i) | ~np.isnan(row_j)
                         union_count = np.sum(mask_union)
                         similarity = support / union_count if union_count > 0 else 0
@@ -752,7 +735,7 @@ class ContentBased(AlgoBase):
             return df_features.fillna(0)
 
         elif features_method == "all_content_tmdb_tags1128":
-            # Pareil que all_content_tmdb mais tags TF-IDF max_features=1128 (= dim genome).
+            # Same as all_content_tmdb but tags TF-IDF max_features=1128 (= dim genome).
             df_genome_scaled = self._load_genome_scaled()
             df_tags = self._load_tags(max_features=1128, ngrams=(1, 2), sublinear=True, min_df=3)
             df_year, df_genres = self._load_year_genres(df_items, with_decades=True)
@@ -775,14 +758,14 @@ class ContentBased(AlgoBase):
             return df_features.fillna(0)
 
         elif features_method == "genome_tags1128_only":
-            # Hypothèse minimale : juste genome (1128) + tags(1128). Match exact de l'indice ami.
+            # Minimal hypothesis : just genome (1128) + tags(1128). Exact match of the friend index.
             df_genome_scaled = self._load_genome_scaled()
             df_tags = self._load_tags(max_features=1128, ngrams=(1, 2), sublinear=True, min_df=3)
             df_features = df_genome_scaled.join(df_tags, how='outer')
             return df_features.fillna(0)
 
         elif features_method == "all_content_tmdb_emb_tags1128":
-            # Combo : tags1128 + TMDB + SBERT embeddings. Stack des 2 gains.
+            # Combo : tags1128 + TMDB + SBERT embeddings. Stack of the 2 gains.
             df_genome_scaled = self._load_genome_scaled()
             df_tags = self._load_tags(max_features=1128, ngrams=(1, 2), sublinear=True, min_df=3)
             df_year, df_genres = self._load_year_genres(df_items, with_decades=True)
@@ -798,7 +781,7 @@ class ContentBased(AlgoBase):
             return df_features.fillna(0)
 
         elif features_method == "all_content_tmdb_tags2000":
-            # Pousse plus loin : tags max=2000 (au-delà de la dim genome).
+            # Goes further : tags max=2000.
             df_genome_scaled = self._load_genome_scaled()
             df_tags = self._load_tags(max_features=2000, ngrams=(1, 2), sublinear=True, min_df=3)
             df_year, df_genres = self._load_year_genres(df_items, with_decades=True)
@@ -1006,10 +989,9 @@ class ContentBased(AlgoBase):
                 from sklearn.preprocessing import StandardScaler
                 from sklearn.pipeline import make_pipeline
                 
-                # Le pipeline standardise les tags avant d'ajuster le Ridge
-                # Tu peux tester avec alpha=10.0 ou alpha=1.0
+            
                 model = make_pipeline(
-                    StandardScaler(with_mean=False), # False car les matrices de tags sont souvent creuses
+                    StandardScaler(with_mean=False), # False because matrix is sparse and we don't want to densify it
                     Ridge(alpha=100.0, fit_intercept=True)
                 )
                 model.fit(X, y)
@@ -1175,7 +1157,6 @@ class ContentBased(AlgoBase):
                 
             item_features = self.content_features.loc[[raw_item_id], :].values
             
-            # Prédiction continue directe (très dynamique pour le classement)
             score = user_model.predict(item_features)[0]
             return float(np.clip(score, lo, hi))
 
@@ -1293,8 +1274,7 @@ class UserBased_tuned(AlgoBase):
                 mask_intersection = ~np.isnan(row_i - row_j)
                 support = np.sum(mask_intersection)
                 
-                # FIX CRITIQUE : Assigne une valeur par défaut locale immédiate.
-                # Cela élimine définitivement le UnboundLocalError.
+                
                 current_similarity = 0.0
                 
                 if support >= min_support:
@@ -1309,24 +1289,24 @@ class UserBased_tuned(AlgoBase):
                         current_similarity = support / union_count if union_count > 0 else 0.0
                     
                     elif sim_name == 'cosine_jaccard':
-                        # 1. Extraction des vecteurs sur l'intersection
+                        # 1. Extracting the vectors on the intersection
                         u_vec = row_i[mask_intersection]
                         v_vec = row_j[mask_intersection]
                         
-                        # 2. Calcul du Cosinus de base
+                        # 2. Calculating the base Cosine    
                         dot_product = np.sum(u_vec * v_vec)
                         norm_u = np.sqrt(np.sum(u_vec**2))
                         norm_v = np.sqrt(np.sum(v_vec**2))
                         cosine = dot_product / (norm_u * norm_v) if (norm_u * norm_v) > 0 else 0.0
                         
-                        # 3. Calcul de l'indice de Jaccard
+                        # 3. Calculating the Jaccard index
                         mask_union = ~np.isnan(row_i) | ~np.isnan(row_j)
                         union_count = np.sum(mask_union)
                         jaccard = support / union_count if union_count > 0 else 0.0
                         
-                        # 4. Fusion des deux métriques
+                        # 4. Fusion of the two metrics
                         current_similarity = float(cosine * jaccard)
                     
-                # Assignation sécurisée dans la matrice globale
+                # Securised assignment in the global matrix
                 self.sim[i, j] = current_similarity
                 self.sim[j, i] = current_similarity

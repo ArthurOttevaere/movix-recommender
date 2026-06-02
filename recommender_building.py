@@ -23,34 +23,34 @@ from models import LatentFactorPP
 from constants import Constant as C
 from loaders import load_ratings, load_items
 
-# ── Identifiant utilisateur (négatif pour ne pas entrer en conflit avec MovieLens) ──
+# ── Negative User ID not to conflict with MovieLens ──
 MY_USER_ID = -1
 
-# ── Poids des événements (section 4.5.1) ─────────────────────────────────────────
-# top10   → signal le plus fort, comme "buy"        → w = 100
-# n_watched → nombre de visionnages (capé), comme "moreDetails" → w = 50
-# wishlist  → intention de voir, comme "details + more" → w = 30
-# recent    → vu récemment, comme "details"          → w = 15
+# ── Events weights (section 4.5.1) ─────────────────────────────────────────
+# top10   → strong signal, like "buy"        → w = 100
+# n_watched → number of viewings (capped), like "moreDetails" → w = 50
+# wishlist  → intention to watch, like "details + more" → w = 30
+# recent    → recently watched, like "details"          → w = 15
 W_TOP10    = 100
 W_WATCHED  = 50
 W_WISHLIST = 30
 W_RECENT   = 15
-MAX_WATCHED = 5   # cap : au-delà de 5 visions, le signal n'augmente plus
+MAX_WATCHED = 5   # cap : above 5viewings, the signal does not increase further
 
 
 # ─────────────────────────────────────────────────────────────────────────────────
-# UTILITAIRE : générer le template CSV à remplir
+# UTILS : generate the template
 # ─────────────────────────────────────────────────────────────────────────────────
 
 def generate_library_template(output_path: str = "library_lenny.csv", n: int = 200) -> None:
     """
-    Génère un fichier CSV trié par popularité décroissante (n films les plus populaires).
-    L'utilisateur remplit ensuite les colonnes n_watched, wishlist, recent, top10.
+    Generates a CSV file sorted by decreasing popularity (n most popular films).
+    The user then fills in the columns n_watched, wishlist, recent, top10.
     """
     df_ratings = load_ratings(surprise_format=False)
     df_items   = load_items()
 
-    # Popularité = nombre de ratings par film
+    # Popularity = number of ratings
     popularity = df_ratings.groupby(C.ITEM_ID_COL)[C.RATING_COL].count().rename("n_ratings")
     df_popular = (
         popularity
@@ -65,38 +65,38 @@ def generate_library_template(output_path: str = "library_lenny.csv", n: int = 2
     )
     df_popular = df_popular.rename(columns={C.ITEM_ID_COL: "movie_id", C.LABEL_COL: "title"})
 
-    # Colonnes à remplir — valeurs par défaut à 0
-    df_popular["n_watched"] = 0   # nombre de fois visionné {0, 1, 2, ...}
-    df_popular["wishlist"]  = 0   # 1 si tu veux le voir, 0 sinon
-    df_popular["recent"]    = 0   # 1 si vu dans les 2 dernières années, 0 sinon
-    df_popular["top10"]     = 0   # 1 si dans ton top-10 personnel, 0 sinon
+    # Columns to fill
+    df_popular["n_watched"] = 0   # number of times watched {0, 1, 2, ...}
+    df_popular["wishlist"]  = 0   # 1 if you want to see it, 0 otherwise
+    df_popular["recent"]    = 0   # 1 if watched in the last 2 years, 0 otherwise
+    df_popular["top10"]     = 0   # 1 if in your personal top-10, 0 otherwise
 
     cols = ["movie_id", "title", "genres", "n_ratings", "n_watched", "wishlist", "recent", "top10"]
     df_popular[cols].to_csv(output_path, index=False)
-    print(f"Template généré : {output_path}  ({len(df_popular)} films)")
-    print("→ Remplis les colonnes n_watched / wishlist / recent / top10 dans Excel, puis exporte en CSV.")
+    print(f"Template generated : {output_path}  ({len(df_popular)} films)")
+    print("→ Fill the columns n_watched / wishlist / recent / top10 in Excel, then export as CSV.")
 
 
 # ─────────────────────────────────────────────────────────────────────────────────
-# FONCTION 1 : calculer les ratings implicites depuis la bibliothèque
+# FONCTION 1 : compute the implicit ratings from the filled library
 # ─────────────────────────────────────────────────────────────────────────────────
 
 def compute_implicit_ratings(library_path: str) -> pd.DataFrame:
     """
-    Lit la bibliothèque personnelle et calcule un rating implicite ∈ [0.5, 5.0]
-    pour chaque film, selon la formule de la section 4.5.1.
+    Read the personal library and calculate an implicit rating ∈ [0.5, 5.0]
+    for each film, according to the formula of section 4.5.1.
 
-    Paramètre
+    Parameter
     ---------
-    library_path : chemin vers le CSV rempli (library_lenny.csv)
+    library_path : path to the filled CSV (library_lenny.csv)
 
-    Retourne
+    Returns
     --------
-    DataFrame avec colonnes [movie_id, implicit_rating]
+    DataFrame with columns [movie_id, implicit_rating]
     """
     df = pd.read_csv(library_path)
 
-    # ── Formule section 4.5.1 : IR = somme(w_k * #event_k) ──────────────────
+    # ── Formula section 4.5.1 : IR = sum(w_k * #event_k) ──────────────────
     df["raw_ir"] = (
         W_TOP10    * df["top10"] +
         W_WATCHED  * df["n_watched"].clip(upper=MAX_WATCHED) +
@@ -104,15 +104,15 @@ def compute_implicit_ratings(library_path: str) -> pd.DataFrame:
         W_RECENT   * df["recent"]
     )
 
-    # Forcer movie_id en entier (Excel peut convertir en float : 356 → 356.0)
+    # Force movie_id to integer (Excel can convert to float : 356 → 356.0)
     df["movie_id"] = pd.to_numeric(df["movie_id"], errors="coerce")
     df = df.dropna(subset=["movie_id"])
     df["movie_id"] = df["movie_id"].astype(int)
 
-    # Garder seulement les films avec au moins un événement
+    # Keep only the films with at least one event
     df = df[df["raw_ir"] > 0].copy()
 
-    # ── Normalisation dans [0.5, 5.0] ────────────────────────────────────────
+    # ── Normalization in [0.5, 5.0] ────────────────────────────────────────
     ir_min = df["raw_ir"].min()
     ir_max = df["raw_ir"].max()
     if ir_max > ir_min:
@@ -122,47 +122,47 @@ def compute_implicit_ratings(library_path: str) -> pd.DataFrame:
 
     df["implicit_rating"] = df["implicit_rating"].clip(0.5, 5.0).round(2)
 
-    print(f"[1] {len(df)} films avec rating implicite calculé")
+    print(f"[1] {len(df)} films with implicit rating calculated")
     print(f"    Min IR : {df['implicit_rating'].min():.2f}  |  Max IR : {df['implicit_rating'].max():.2f}")
 
     return df[["movie_id", "implicit_rating"]].reset_index(drop=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────────
-# FONCTION 2 : construire le trainset augmenté (MovieLens + ratings implicites)
+# FUNCTION 2 : build the augmented trainset (MovieLens + implicit ratings)
 # ─────────────────────────────────────────────────────────────────────────────────
 
 def build_augmented_trainset(implicit_ratings_df: pd.DataFrame):
     """
-    Ajoute les ratings implicites au dataset MovieLens et construit un Surprise Trainset.
-    L'utilisateur reçoit l'ID MY_USER_ID (négatif pour éviter les conflits).
+    Add the implicit ratings to the MovieLens dataset and build a Surprise Trainset.
+    The user receives the ID MY_USER_ID (negative to avoid conflicts).
 
-    Paramètre
+    Parameter
     ---------
-    implicit_ratings_df : sortie de compute_implicit_ratings()
+    implicit_ratings_df : output of compute_implicit_ratings()
 
-    Retourne
+    Returns
     --------
-    Surprise Trainset entraînable
+    Surprise Trainset trainable
     """
     df_ratings = load_ratings(surprise_format=False)
 
-    # Construire les lignes correspondant à l'utilisateur personnel
+    # Construct the rows corresponding to the personal user
     implicit_rows = pd.DataFrame({
         C.USER_ID_COL: MY_USER_ID,
         C.ITEM_ID_COL: implicit_ratings_df["movie_id"].values,
         C.RATING_COL:  implicit_ratings_df["implicit_rating"].values,
     })
 
-    # Concaténer avec les ratings MovieLens existants
+    # Concatenate with the existing MovieLens ratings
     df_augmented = pd.concat(
         [df_ratings[C.USER_ITEM_RATINGS], implicit_rows],
         ignore_index=True
     )
 
-    print(f"[2] Dataset augmenté : {len(df_augmented)} ratings  "
-          f"({len(df_ratings)} MovieLens + {len(implicit_rows)} implicites)")
-    print(f"    User ID personnel : {MY_USER_ID}")
+    print(f"[2] Augmented dataset : {len(df_augmented)} ratings  "
+          f"({len(df_ratings)} MovieLens + {len(implicit_rows)} implicit)")
+    print(f"    Personal User ID : {MY_USER_ID}")
 
     reader   = Reader(rating_scale=C.RATINGS_SCALE)
     dataset  = Dataset.load_from_df(df_augmented[C.USER_ITEM_RATINGS], reader)
@@ -171,22 +171,20 @@ def build_augmented_trainset(implicit_ratings_df: pd.DataFrame):
 
 
 # ─────────────────────────────────────────────────────────────────────────────────
-# FONCTION 3 : entraîner le modèle et sauvegarder le pickle
+# FUNCTION 3 : train the model and save the pickle
 # ─────────────────────────────────────────────────────────────────────────────────
 
 def train_and_save(trainset, artifact_path: str = "backend/artifacts/svd_model.pkl"):
     """
-    Entraîne un SVD++ (LatentFactorPP) sur le trainset augmenté et sauvegarde le modèle en pickle.
-    Paramètres issus de la littérature : Koren, Y. (2008). KDD '08, pp. 426–434.
-
-    Paramètres
+    Trains an SVD++ (LatentFactorPP) on the augmented trainset and saves the model as a pickle.
+    Parameters
     ----------
-    trainset      : Surprise Trainset (sortie de build_augmented_trainset)
-    artifact_path : chemin de sauvegarde du pickle
+    trainset      : Surprise Trainset (output of build_augmented_trainset)
+    artifact_path : path to save the model  pickle
 
-    Retourne
+    Returns
     --------
-    algo entraîné
+    algo trained
     """
     # Koren, Y. (2008). Factorization meets the neighborhood. KDD '08, pp. 426–434.
     algo = LatentFactorPP()
@@ -196,14 +194,14 @@ def train_and_save(trainset, artifact_path: str = "backend/artifacts/svd_model.p
     with open(artifact_path, "wb") as f:
         pickle.dump(algo, f)
 
-    print(f"[3] Modèle sauvegardé : {artifact_path}")
+    print(f"[3] Model saved : {artifact_path}")
     print(f"    n_items  : {trainset.n_items}")
     print(f"    n_users  : {trainset.n_users}")
     return algo
 
 
 # ─────────────────────────────────────────────────────────────────────────────────
-# MAIN : pipeline complet
+# MAIN : entire pipeline
 # ─────────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -212,13 +210,13 @@ if __name__ == "__main__":
 
     print("=== Workshop 2 — Implicit Library ===\n")
 
-    print("Étape 1 — Calcul des ratings implicites...")
+    print("Step 1 — Computing implicit ratings...")
     implicit_df = compute_implicit_ratings(LIBRARY_PATH)
 
-    print("\nÉtape 2 — Construction du trainset augmenté...")
+    print("\nStep 2 — Building the augmented trainset...")
     trainset = build_augmented_trainset(implicit_df)
 
-    print("\nÉtape 3 — Entraînement et sauvegarde...")
+    print("\nStep 3 — Training and saving...")
     train_and_save(trainset, ARTIFACT_PATH)
 
-    print("\nTerminé !")
+    print("\nCompleted!")
