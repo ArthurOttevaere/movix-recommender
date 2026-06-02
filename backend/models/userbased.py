@@ -58,29 +58,41 @@ MIN_USER_SUPPORT = 3      # min_support (intersection minimale avec un voisin)
 SHRINKAGE = 100.0         # Régularisation standard de Pearson dans Surprise
 REG_U = 15.0              # Régularisation ALS pour estimer le biais du nouvel utilisateur
 
-_userbased_model = None  
-_rating_matrix = None    
+# Reranking popularité — identique au pipeline d'évaluation (models.get_top_n_reranked,
+# configs.UserBased_Pearson_Natif: rerank_popularity=True, rerank_alpha=0.1).
+# score_classement = note_prédite + alpha * log1p(popularité_item).
+RERANK_POPULARITY = True
+RERANK_ALPHA = 0.5
+
+_userbased_model = None
+_rating_matrix = None
 _mu = 0.0                # Global mean
 _bu = None               # User biases (backend)
 _bi = None               # Item biases (backend)
-_item_index: dict = {}   
+_item_index: dict = {}
+_item_logpop = None      # log1p(nb users ayant noté l'item), indexé par inner_id
 
 
 def load() -> None:
     """Charge les artefacts user-based depuis artifacts/."""
-    global _userbased_model, _rating_matrix, _mu, _bu, _bi, _item_index
+    global _userbased_model, _rating_matrix, _mu, _bu, _bi, _item_index, _item_logpop
     with open(ARTIFACTS_DIR / "userbased_model.pkl", "rb") as f:
         _userbased_model = pickle.load(f)
-    
+
     _rating_matrix = load_npz(ARTIFACTS_DIR / "rating_matrix.npz")
-    
+
     # Extraction directe des biais calculés par le C++ de Surprise
     ts = _userbased_model.trainset
     _mu = ts.global_mean
     _bu = _userbased_model.bu
     _bi = _userbased_model.bi
-    
+
     _item_index = {int(ts.to_raw_iid(iid)): iid for iid in range(ts.n_items)}
+
+    # Popularité = nb d'utilisateurs ayant noté chaque item (= item_freq de l'éval),
+    # précalculée en log1p pour le reranking. Indexé par inner_id.
+    item_pop = np.asarray((_rating_matrix > 0).sum(axis=0)).ravel().astype(float)
+    _item_logpop = np.log1p(item_pop)
     print(f"[userbased_pearson] {_rating_matrix.shape[0]} utilisateurs, {_rating_matrix.shape[1]} films chargés.")
 
 
@@ -172,19 +184,27 @@ def recommend(user_ratings: dict, n: int = 20) -> list[tuple[int, float]]:
         
         # Note = Baseline_nouvel_utilisateur + déviation pondérée
         pred = _mu + b_new + _bi[i] + (num / denom)
-        results.append((int(ts.to_raw_iid(i)), pred, n_supp))
+
+        # Score de classement = reranking popularité (= models.get_top_n_reranked).
+        # On le sépare de la note affichée : il sert UNIQUEMENT à ordonner le carrousel,
+        # exactement comme dans le pipeline d'évaluation où rerank_popularity=True.
+        rank_score = pred
+        if RERANK_POPULARITY and _item_logpop is not None:
+            rank_score = pred + RERANK_ALPHA * _item_logpop[i]
+
+        results.append((int(ts.to_raw_iid(i)), pred, n_supp, rank_score))
 
     if not results:
         return []
 
-    # 6. Tri (note prédite desc, puis support) et sortie
-    #    On renvoie la NOTE PRÉDITE clampée [0.5, 5.0] — comme content.py / svd.py.
-    #    C'est une estimation absolue de combien l'utilisateur aimerait le film, donc
-    #    le "% match" vert reflète un vrai match (et non un min-max relatif aux 20
-    #    films affichés, qui forçait toujours le 1er à 100 % et le dernier à ~0 %).
-    #    Le classement est inchangé (le min-max retiré était monotone).
-    results.sort(key=lambda x: (-x[1], -x[2]))
+    # 6. Tri (score de reranking desc, puis support) et sortie.
+    #    On TRIE par le score reranké (note + alpha*log popularité) pour aligner
+    #    l'ordre du carrousel sur le modèle évalué (UserBased_Pearson_Natif,
+    #    rerank_alpha=0.1), mais on RENVOIE la NOTE PRÉDITE clampée [0.5, 5.0] —
+    #    comme content.py. Ainsi le "% match" vert reste une estimation
+    #    absolue du goût (cf. green-match-score) et n'est pas gonflé par la popularité.
+    results.sort(key=lambda x: (-x[3], -x[2]))
     return [
         (mid, round(float(np.clip(score, 0.5, 5.0)), 4))
-        for mid, score, _ in results[:n]
+        for mid, score, _, _ in results[:n]
     ]

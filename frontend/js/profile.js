@@ -134,7 +134,6 @@ function computeLocalStats() {
     memberSince,
     streak,
     hoursWatched: Math.round(totalRatings * 1.75), // estimate, updated async
-    completionRate: totalRatings > 0 ? Math.min(95, 60 + Math.round(totalRatings * 2)) : 0,
     ratingIds: Object.keys(ratingsMap).map(Number),
     ratingsMap,
   };
@@ -214,7 +213,6 @@ function renderStatsGrid(local) {
   if (el('stat-mean-rating')) el('stat-mean-rating').textContent = local.meanRating || '—';
   if (el('stat-streak')) el('stat-streak').textContent = local.streak;
   if (el('stat-watchlist')) el('stat-watchlist').textContent = local.watchlistCount;
-  if (el('stat-completion')) el('stat-completion').textContent = local.completionRate + '%';
 
   if (el('profile-member-since')) {
     const d = new Date(local.memberSince);

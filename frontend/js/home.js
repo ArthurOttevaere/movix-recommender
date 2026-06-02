@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Vivier « No Fuss » : UNIQUEMENT les films recommandés sur la page d'accueil par
   // les 4 modèles (content_based, user_based, iALS, BPR) — aucun autre film (pas de
-  // SVD, pas de carrousels de genre). On affiche en priorité le score content-based
+  // carrousels de genre). On affiche en priorité le score content-based
   // (le modèle « basé sur vos goûts ») quand le film y figure ; sinon le `score`
   // normalisé du modèle → jamais de % « sorti de nulle part ».
   const HOME_MODELS = new Set(['content_based', 'user_based', 'ials', 'bpr']);

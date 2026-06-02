@@ -1,6 +1,6 @@
 """
 Serveur FastAPI — ne pas modifier ce fichier.
-Implémentez votre modèle dans backend/models/content.py, svd.py ou userbased.py.
+Implémentez votre modèle dans backend/models/content.py ou userbased.py.
 """
 
 import asyncio
@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from backend import utils
-from backend.models import content, svd, userbased, ials, bpr, load_all
+from backend.models import content, userbased, ials, bpr, load_all
 from backend.store import (
     UserProfile,
     create_user,
@@ -348,7 +348,6 @@ async def get_recommendations(token: str):
     loop = asyncio.get_event_loop()
     results = await asyncio.gather(
         loop.run_in_executor(None, content.recommend, ratings, N),
-        loop.run_in_executor(None, svd.recommend, ratings, N),
         loop.run_in_executor(None, userbased.recommend, ratings, N),
         loop.run_in_executor(None, ials.recommend, ratings, N),
         loop.run_in_executor(None, bpr.recommend, ratings, N),
@@ -363,15 +362,14 @@ async def get_recommendations(token: str):
         return res
 
     content_recs  = safe(results[0])
-    svd_recs      = safe(results[1])
-    ub_recs       = safe(results[2])
-    ials_recs     = safe(results[3])
-    bpr_recs      = safe(results[4])
+    ub_recs       = safe(results[1])
+    ials_recs     = safe(results[2])
+    bpr_recs      = safe(results[3])
 
-    # Ensemble : interleave les 3 modèles, dédupliqué
+    # Ensemble : interleave les 2 modèles, dédupliqué
     seen: set[int] = set()
     ensemble: list[tuple[int, float]] = []
-    for pairs in (content_recs, svd_recs, ub_recs):
+    for pairs in (content_recs, ub_recs):
         for mid, score in pairs:
             if mid not in seen:
                 seen.add(mid)
@@ -383,7 +381,7 @@ async def get_recommendations(token: str):
     hero["backdrop_url"] = None
     hero["tagline"] = ""
 
-    all_pairs = content_recs + svd_recs + ub_recs + ials_recs + bpr_recs
+    all_pairs = content_recs + ub_recs + ials_recs + bpr_recs
     genre_carousels = _build_genre_carousels(all_pairs, ratings, user.watchlist)
 
     return {
@@ -395,13 +393,6 @@ async def get_recommendations(token: str):
                 "model": "content_based",
                 "explanation": "Based on your taste profile",
                 "movies": _pairs_to_movies(content_recs[1:], ratings, user.watchlist, N),
-            },
-            {
-                "id": "latent_factor",
-                "label": "In Your Style — SVD Model",
-                "model": "svd",
-                "explanation": "Hidden patterns in your ratings",
-                "movies": _pairs_to_movies(svd_recs, ratings, user.watchlist, 20),
             },
             {
                 "id": "user_based",

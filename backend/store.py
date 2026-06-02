@@ -24,7 +24,7 @@ _STORE: dict[str, UserProfile] = {}
 # préférences : la bibliothèque personnelle de Lenny (library_lenny.csv) convertie
 # en ratings implicites via recommender_building.compute_implicit_ratings (cf. PDF,
 # section 5). Le front propose ce profil dans l'écran « Who's watching? » sous un
-# token fixe ; tous les modèles backend (content/svd/userbased/ials/bpr) calculent
+# token fixe ; tous les modèles backend (content/userbased/ials/bpr) calculent
 # alors leurs recommandations à la volée à partir de ces ratings riches.
 #
 # main.py n'est PAS modifié : le profil est matérialisé paresseusement à la
