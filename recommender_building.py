@@ -4,7 +4,6 @@ Workshop 2 — Implicit Library
 Fonctions :
   1. compute_implicit_ratings(library_path)  → DataFrame {movie_id, implicit_rating}
   2. build_augmented_trainset(implicit_df)   → Surprise Trainset
-  3. train_and_save(trainset, path)          → algo entraîné + pickle sauvegardé
 
 Formule (section 4.5.1) :
   IR_{i,u} = w_top10 * top10 + w_watched * min(n_watched, MAX_WATCHED)
@@ -12,13 +11,9 @@ Formule (section 4.5.1) :
   Normalisé dans [0.5, 5.0].
 """
 
-import pickle
-from pathlib import Path
-
 import pandas as pd
 import numpy as np
 from surprise import Dataset, Reader
-from models import LatentFactorPP
 
 from constants import Constant as C
 from loaders import load_ratings, load_items
@@ -171,42 +166,11 @@ def build_augmented_trainset(implicit_ratings_df: pd.DataFrame):
 
 
 # ─────────────────────────────────────────────────────────────────────────────────
-# FUNCTION 3 : train the model and save the pickle
-# ─────────────────────────────────────────────────────────────────────────────────
-
-def train_and_save(trainset, artifact_path: str = "backend/artifacts/svd_model.pkl"):
-    """
-    Trains an SVD++ (LatentFactorPP) on the augmented trainset and saves the model as a pickle.
-    Parameters
-    ----------
-    trainset      : Surprise Trainset (output of build_augmented_trainset)
-    artifact_path : path to save the model  pickle
-
-    Returns
-    --------
-    algo trained
-    """
-    # Koren, Y. (2008). Factorization meets the neighborhood. KDD '08, pp. 426–434.
-    algo = LatentFactorPP()
-    algo.fit(trainset)
-
-    Path(artifact_path).parent.mkdir(parents=True, exist_ok=True)
-    with open(artifact_path, "wb") as f:
-        pickle.dump(algo, f)
-
-    print(f"[3] Model saved : {artifact_path}")
-    print(f"    n_items  : {trainset.n_items}")
-    print(f"    n_users  : {trainset.n_users}")
-    return algo
-
-
-# ─────────────────────────────────────────────────────────────────────────────────
 # MAIN : entire pipeline
 # ─────────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     LIBRARY_PATH  = "library_lenny.csv"
-    ARTIFACT_PATH = "backend/artifacts/svd_model.pkl"
 
     print("=== Workshop 2 — Implicit Library ===\n")
 
@@ -215,8 +179,5 @@ if __name__ == "__main__":
 
     print("\nStep 2 — Building the augmented trainset...")
     trainset = build_augmented_trainset(implicit_df)
-
-    print("\nStep 3 — Training and saving...")
-    train_and_save(trainset, ARTIFACT_PATH)
 
     print("\nCompleted!")

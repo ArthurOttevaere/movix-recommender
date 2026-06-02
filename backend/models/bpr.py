@@ -6,7 +6,12 @@ Interface:
     load() → None
     recommend(user_ratings, n) → list[tuple[int, float]]
 
-Strategy — Weighted ridge folding-in + relevance-gated novelty re-ranking:
+Strategy — Weighted ridge folding-in + novelty re-ranking:
+    Faithful to the evaluated ModelBPRNovelty.test() (configs.BPR_Novelty): the
+    novelty re-ranking is applied over the WHOLE candidate catalogue with a global
+    popularity penalty — no relevance gate, no pool-local normalization — so the
+    served carousel matches the model whose metrics (coverage, miuf, …) are reported.
+
     The trained BPR model contains:
       item_factors  → item latent factors  (n_items × n_factors)   (implicit.bpr)
       trainset      → raw_id ↔ inner_id mapping + popularity info  (Surprise)
@@ -17,31 +22,21 @@ Strategy — Weighted ridge folding-in + relevance-gated novelty re-ranking:
          b = Y_rated.T @ w
          pu = solve(A, b)
 
-    Step 2 — Relevance gate (keep only items that match the user's taste):
-         Rank all unrated films by pure relevance (item_factors @ pu) and keep
-         the TOP_K most relevant as the candidate pool. This guarantees every
-         recommendation stays within the user's taste — the worst item we can
-         surface is the K-th most relevant film.
-
-    Step 3 — Novelty re-ranking (within the relevant pool only):
-         norm_score(i)  = minmax(score(i))   over the pool   → [0, 1]
-         penalty(i)     = minmax(log1p(pop))  over the pool   → [0, 1]
+    Step 2 — Novelty re-ranking over all unrated films:
+         norm_score(i)  = minmax(relevance(i))  over all candidates  → [0, 1]
+         penalty(i)     = log1p(pop_i) / log_pop_max  (global)       → [0, 1]
          adjusted(i)    = (1 - β) * norm_score(i) - β * penalty(i)
-         Both terms are min-max normalized *within the pool* so β trades them off
-         on equal footing. (Normalizing popularity globally would make it nearly
-         constant across a pool of popular blockbusters → β would have no effect.)
 
-    Step 4 — Sort by adjusted score, return top-n.
+    Step 3 — Sort by adjusted score, return top-n.
 
-    Why the gate matters: applying the popularity penalty over the WHOLE catalog
-    makes obscure-but-irrelevant films (relevance≈0, popularity≈0) win as soon as
-    β grows, producing random-looking picks. Gating to the top-K relevant items
-    first (personalized re-ranking, Abdollahpouri 2019) keeps novelty *inside*
-    the user's taste, and makes β behave smoothly instead of cliff-like.
+    β = 0.2 : aligned with configs.BPR_Novelty (the evaluated model). At this weight
+              relevance dominates (0.8) and novelty only adjusts at the margin, which
+              is why dropping the old relevance gate is safe here.
 
-    TOP_K = 200 : size of the relevant candidate pool re-ranked for novelty.
-    β = 0.5 : balanced — with the gate, distinct from iALS (≈0-35% top-20 overlap)
-              while every pick stays within the user's top-200 most relevant films.
+    Note: serving uses folding-in (the new user is not in the trainset), so pu is a
+    closed-form approximation — the re-ranking algorithm matches test() exactly, but
+    the scores are not bit-identical to an offline retrain. This is inherent to
+    real-time serving.
 
 Artifact generation (from notebook):
     import pickle
@@ -64,8 +59,7 @@ import numpy as np
 
 ARTIFACTS_DIR = Path(__file__).parent.parent / "artifacts"
 LAMBDA = 0.1   # regularization for folding-in
-BETA   = 0.5   # novelty weight within the relevant pool: 0.0 = pure relevance, 1.0 = pure novelty
-TOP_K  = 200   # size of the relevance-gated candidate pool re-ranked for novelty
+BETA   = 0.2   # novelty weight — aligned with configs.BPR_Novelty (beta=0.2), the evaluated model
 
 _bpr_model  = None
 _item_factors = None  # (n_items × n_factors), float64
@@ -128,38 +122,28 @@ def recommend(user_ratings: dict, n: int = 20) -> list[tuple[int, float]]:
     candidates_inner = np.array(candidates_inner)
     relevance = (_item_factors @ pu)[candidates_inner]
 
-    # 4. Relevance gate: keep only the TOP_K most relevant films as the pool.
-    #    Novelty is applied *within* this pool, so we never surface items that
-    #    fall outside the user's taste — the worst pick is the K-th most relevant.
-    k = min(TOP_K, len(candidates_inner))
-    top_idx = np.argpartition(-relevance, k - 1)[:k]
-    candidates_inner = candidates_inner[top_idx]
-    raw_scores = relevance[top_idx]
-
-    # 5. Novelty re-ranking within the relevant pool: favour the less mainstream
-    #    films *among the relevant ones*. Both relevance and popularity are
-    #    min-max normalized over the pool so β trades them off on equal footing.
-    #    (Normalizing popularity globally would make it ≈constant across a pool of
-    #     popular blockbusters, leaving β with no effect.)
-    s_min, s_max = float(raw_scores.min()), float(raw_scores.max())
-    norm_scores = (raw_scores - s_min) / (s_max - s_min) if s_max > s_min else np.full(len(raw_scores), 0.5)
-    pool_pop = _log_pop[candidates_inner]
-    p_min, p_max = float(pool_pop.min()), float(pool_pop.max())
-    pop_penalty = (pool_pop - p_min) / (p_max - p_min) if p_max > p_min else np.zeros(len(pool_pop))
+    # 4. Novelty re-ranking — faithful to the evaluated ModelBPRNovelty.test():
+    #    applied over the WHOLE candidate catalogue (no relevance gate), relevance
+    #    min-max normalized over all candidates, and popularity penalised GLOBALLY
+    #    (log_pop / log_pop_max) rather than within a pool. This is what produces the
+    #    reported coverage / miuf metrics, so the served carousel matches them.
+    s_min, s_max = float(relevance.min()), float(relevance.max())
+    norm_scores = (relevance - s_min) / (s_max - s_min) if s_max > s_min else np.full(len(relevance), 0.5)
+    pop_penalty = _log_pop[candidates_inner] / _log_pop_max
     adjusted    = (1 - BETA) * norm_scores - BETA * pop_penalty
 
-    # 6. Taste-match score = cosine(pu, item) ∈ [0, 1] for the pool. This is what
-    #    the green "% match" shows: how well each film fits the user's taste,
+    # 5. Taste-match score = cosine(pu, item) ∈ [0, 1] over all candidates. This is
+    #    what the green "% match" shows: how well each film fits the user's taste,
     #    INDEPENDENT of the novelty re-ranking (a fresh pick can still report its
-    #    true match). Ranking stays by `adjusted` (relevance + novelty); only the
-    #    displayed score is the match. Encoded into [0.5, 5.0] for normalize_score().
+    #    true match). Ranking stays by `adjusted`; only the displayed score is the
+    #    match. Encoded into [0.5, 5.0] so normalize_score() maps it back to a %.
     pu_norm = float(np.linalg.norm(pu)) + 1e-9
-    pool_factors = _item_factors[candidates_inner]
-    pool_norms = np.linalg.norm(pool_factors, axis=1) + 1e-9
-    match = np.clip(raw_scores / (pool_norms * pu_norm), 0.0, 1.0)
+    cand_factors = _item_factors[candidates_inner]
+    cand_norms = np.linalg.norm(cand_factors, axis=1) + 1e-9
+    match = np.clip(relevance / (cand_norms * pu_norm), 0.0, 1.0)
     display = 0.5 + match * 4.5
 
-    # 7. Rank by novelty-adjusted score (descending), return top-n with match score
+    # 6. Rank by novelty-adjusted score (descending), return top-n with match score
     order = np.argsort(-adjusted)[:n]
     return [
         (int(ts.to_raw_iid(int(candidates_inner[j]))), float(display[j]))
