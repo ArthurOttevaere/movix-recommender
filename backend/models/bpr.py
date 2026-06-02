@@ -38,13 +38,21 @@ Strategy — Weighted ridge folding-in + novelty re-ranking:
     the scores are not bit-identical to an offline retrain. This is inherent to
     real-time serving.
 
-Artifact generation (from notebook):
-    import pickle
-    model = ModelBPRNovelty(factors=64, learning_rate=0.01, regularization=0.01,
-                            iterations=100, beta=0.2)
-    model.fit(full_trainset)
-    with open("backend/artifacts/bpr_model.pkl", "wb") as f:
-        pickle.dump(model, f)
+Artifact note:
+    The pickle `bpr_model.pkl` stores a plain `ModelBPR` (BPR-MF) — it only carries
+    the trained latent factors, NOT a beta. This is equivalent to ModelBPRNovelty for
+    serving: ModelBPRNovelty subclasses ModelBPR and beta only affects the re-ranking
+    (test()), never the factor training, so the item_factors are identical either way.
+    The novelty weight beta=0.2 is therefore applied HERE at serving (the BETA constant
+    below), which together with the trained factors reproduces configs.BPR_Novelty.
+
+    Generation (from notebook):
+        import pickle
+        model = ModelBPR(factors=64, learning_rate=0.01, regularization=0.01,
+                         iterations=100)
+        model.fit(full_trainset)
+        with open("backend/artifacts/bpr_model.pkl", "wb") as f:
+            pickle.dump(model, f)
 
 Sources:
   Rendle et al. (2009). "BPR: Bayesian Personalized Ranking from Implicit Feedback." UAI '09.

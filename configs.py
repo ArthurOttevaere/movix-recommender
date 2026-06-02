@@ -35,9 +35,6 @@ class EvalConfig:
         #("UserBased_hidden_new", UserBased_tuned, {"k": 40, "min_k": 2, "sim_options": {'name': 'pearson_baseline', 'min_support': 3}}),
         ("UserBased_Pearson_Natif", KNNBaseline, {"k": 40, "min_k": 2, "sim_options": {'name': 'pearson_baseline', 'user_based': True, 'min_support': 3}, "rerank_popularity": True, "rerank_alpha": 0.5}),
         ("UserBased_Tuned_Jaccard", UserBased_tuned, {"k": 40, "min_k": 2, "sim_options": {'name': 'jacard', 'user_based': True, 'min_support': 3}, "rerank_popularity": True, "rerank_alpha": 0.5}),
-        #("UserBased_Jaccard_Natif", KNNBaseline, {"k": 40, "min_k": 2, "sim_options": {'name': 'cosine', 'user_based': True, 'min_support': 3},"rerank_popularity": True, "rerank_alpha": 0.5}),
-        
-
     ]
 
     # Evaluation metrics — aligned with RecSys literature (NCF, SASRec, LightGCN, Vargas & Castells 2011)
