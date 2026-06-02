@@ -11,3 +11,8 @@ backend/artifacts/
 *.npy
 .env
 frontend/config.local.js
+
+# Editor / tooling / cache (no effect on runtime)
+.claude/
+.pytest_cache/
+.vscode/
