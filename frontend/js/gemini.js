@@ -5,7 +5,10 @@
 // Key: get a free API key at https://aistudio.google.com/apikey
 // Set CONFIG.GEMINI_API_KEY in config.js — leave empty to use keyword fallback.
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
+// NB : gemini-2.5-flash a un quota gratuit très bas (20 req/jour) → 429 fréquents,
+// ce qui faisait silencieusement basculer le chatbot en fallback keyword (recos hors-sujet).
+// gemini-2.5-flash-lite a un quota gratuit bien plus élevé pour ce besoin de matching.
+const GEMINI_MODEL = 'gemini-2.5-flash-lite';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const TMDB_GENRE_IDS = {

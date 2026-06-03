@@ -93,6 +93,16 @@ const api = {
     if (typeof pstore !== 'undefined') pstore.set('watchlist', JSON.stringify(wl));
     else localStorage.setItem('watchlist', JSON.stringify(wl));
 
+    // Mémoire des retraits MANUELS : le seed wishlist (cf. maybeSeedLennyWatchlist)
+    // ré-ajoute à chaque chargement les films wishlist de la source SAUF ceux que
+    // l'utilisateur a explicitement retirés ici. « quoi qu'il arrive sauf retrait manuel. »
+    if (typeof pstore !== 'undefined') {
+      const removed = new Set(JSON.parse(pstore.get('wl_removed') || '[]'));
+      if (action === 'remove') removed.add(movieId);
+      if (action === 'add') removed.delete(movieId);
+      pstore.set('wl_removed', JSON.stringify([...removed]));
+    }
+
     if (!CONFIG.USE_MOCK) {
       return fetch(`${CONFIG.API_BASE_URL}/watchlist`, {
         method: 'POST',

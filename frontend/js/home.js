@@ -132,12 +132,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Token fixe du profil démo Lenny (cf. backend/store.py → LENNY_TOKEN).
 const LENNY_TOKEN = 'lenny-demo-token';
 
-// Au PREMIER chargement du profil démo Lenny, on pré-remplit « My List » avec les
-// films wishlist=1 de son CSV (résolus côté backend → titres/posters corrects).
-// Une seule fois (flag pstore) : les ajouts/retraits ultérieurs sont conservés.
+// À CHAQUE chargement du profil démo Lenny, on garantit que « My List » contient
+// les films wishlist=1 de son CSV (source = backend, résolus → titres/posters corrects).
+// Exigence : ces films réapparaissent TOUJOURS au démarrage, sauf ceux que l'utilisateur
+// a retirés manuellement (mémorisés dans pstore 'wl_removed' par api.toggleWatchlist).
+// Les ajouts manuels d'autres films, eux, restent en tête.
 async function maybeSeedLennyWatchlist() {
   if (auth.getToken() !== LENNY_TOKEN) return;
-  if (pstore.get('lenny_wishlist_seeded')) return;
   try {
     const profile = await api.getProfile(LENNY_TOKEN);
     const movies = Array.isArray(profile?.watchlist_movies) ? profile.watchlist_movies : [];
@@ -147,11 +148,14 @@ async function maybeSeedLennyWatchlist() {
     const known = new Set(allMoviesPool.map(m => m.movie_id));
     movies.forEach(m => { if (!known.has(m.movie_id)) allMoviesPool.push(m); });
 
-    // Ajoutés à la SUITE des éventuels ajouts manuels (qui, eux, restent en tête).
+    // Re-seed : tout film wishlist de la source est (ré)ajouté SAUF s'il a été retiré
+    // manuellement. Ajoutés à la SUITE des ajouts manuels (qui restent en tête).
+    const removed = new Set(JSON.parse(pstore.get('wl_removed') || '[]'));
     const ids = JSON.parse(pstore.get('watchlist') || '[]');
-    movies.forEach(m => { if (!ids.includes(m.movie_id)) ids.push(m.movie_id); });
+    movies.forEach(m => {
+      if (!removed.has(m.movie_id) && !ids.includes(m.movie_id)) ids.push(m.movie_id);
+    });
     pstore.set('watchlist', JSON.stringify(ids));
-    pstore.set('lenny_wishlist_seeded', '1');
     navigation._updateWatchlistBadge?.();
   } catch (e) {
     console.warn('Seed Lenny watchlist failed:', e);
