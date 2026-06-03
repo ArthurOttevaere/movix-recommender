@@ -64,11 +64,13 @@
   color: var(--text-primary);
 }
 
-.navbar-links a.active {
+.navbar-links a {
   position: relative;
 }
 
-.navbar-links a.active::after {
+/* Indicateur d'onglet actif : présent sur tous les liens mais réduit à 0 ;
+   il grandit/rétrécit en douceur (scaleX) au changement d'onglet → transition fluide. */
+.navbar-links a::after {
   content: '';
   position: absolute;
   bottom: -4px;
@@ -77,6 +79,13 @@
   height: 2px;
   background: var(--accent);
   border-radius: 1px;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.navbar-links a.active::after {
+  transform: scaleX(1);
 }
 
 .navbar-right {

@@ -127,6 +127,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   buildHero(data, recCarousels);
   // Home shows up to 20 per row; Discover filters the full lists by genre.
   await renderHomeCarousels(homeModelCarousels.map(c => ({ ...c, movies: c.movies.slice(0, 20) })), allMoviesPool);
+
+  // Arrivée depuis une autre page (ex. profil) avec un hash (#discover, #saga…) :
+  // ouvrir directement cette vue plutôt que de retomber systématiquement sur Home.
+  const viewFromHash = (location.hash || '').replace('#', '');
+  if (['discover', 'saga', 'surprise', 'watchlist'].includes(viewFromHash)) {
+    navigation.showView(viewFromHash);
+  }
 });
 
 // Token fixe du profil démo Lenny (cf. backend/store.py → LENNY_TOKEN).
