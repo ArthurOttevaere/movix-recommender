@@ -117,10 +117,23 @@ through onboarding.
 > the app still runs — but for full personalization, make sure step 3 succeeded (or
 > regenerate the artifacts from the modeling notebooks).
 
-### 5. (Optional, but recommended) external API keys
-The app works out of the box. To enable richer posters and the search assistant,
-copy `frontend/config.local.js.example` → `frontend/config.local.js` and add your
-keys (`TMDB_API_KEY`, `GEMINI_API_KEY`). This file is gitignored.
+### 5. (Recommended) external API keys
+The app runs without keys, but **for the full experience** — real movie posters
+and the LLM-powered search assistant — add your own free API keys:
+
+```bash
+cp frontend/config.local.js.example frontend/config.local.js
+```
+Then open `frontend/config.local.js` and fill in:
+
+| Key | Where to get it (free) | Enables |
+| --- | --- | --- |
+| `TMDB_API_KEY` | https://www.themoviedb.org/settings/api | Real posters & movie metadata |
+| `GEMINI_API_KEY` | https://aistudio.google.com/apikey | LLM search assistant (optional; falls back to a keyword matcher) |
+
+`config.local.js` is **gitignored** — your keys stay local and are never committed.
+Without these keys the app still works, but posters show placeholders and the
+search assistant uses a basic keyword fallback.
 
 ### 6. Offline evaluation
 Open `evaluator.ipynb` and run it. Models and metrics are configured in
