@@ -325,6 +325,17 @@ function renderRecentlyWatched(movies) {
 
   rail.innerHTML = movies.map(m => _profilePosterCard(m)).join('');
   _wireProfilePosters(rail, movies);
+
+  // Arrow nav — same paginate feel as the home carousels.
+  section.querySelectorAll('.carousel-arrow').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const dir = parseInt(btn.dataset.dir);
+      const step = Math.max(rail.clientWidth * 0.85, 600);
+      rail.scrollBy({ left: dir * step, behavior: 'smooth' });
+    });
+  });
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 // ─── Render: Favorite Sagas — poster podium (top 3) ───────────────────────────
