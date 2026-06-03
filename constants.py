@@ -81,9 +81,8 @@ class Constant:
             },
         },
 
-        # --- Nouveaux profils ---
+        # --- New profiles ---
 
-        # Teste si le modèle recommande bien des suites/films d'action similaires
         {
             "name": "action_blockbuster",
             "input": {
@@ -117,7 +116,7 @@ class Constant:
             },
         },
 
-        # Teste la recommandation sur un profil crime/thriller sombre et cohérent
+        # Test the recommendation on a crime/thriller profile that is dark and consistent
         {
             "name": "crime_thriller",
             "input": {
@@ -134,7 +133,7 @@ class Constant:
             },
         },
 
-        # Cold start : seulement 3 films en entrée — teste la robustesse avec peu de données
+        # Cold start : only 3 films in input — test the robustness with few data
         {
             "name": "cold_start",
             "input": {
@@ -145,11 +144,11 @@ class Constant:
             "ground_truth": {
                 527: 5.0,    # Schindler's List
                 318: 4.5,    # The Shawshank Redemption
-                597: 3.0,    # Pretty Woman (sous le seuil, mesure la précision du modèle)
+                597: 3.0,    # Pretty Woman (under the threshold, measure the precision of the model)
             },
         },
 
-        # Notes modérées sur des genres variés — teste si le modèle évite l'effet "bulle"
+        # Notes for varied genres — test if the model avoids the "bubble" effect
         {
             "name": "eclectic_casual",
             "input": {
@@ -168,7 +167,7 @@ class Constant:
             },
         },
 
-        # Aventures classiques / franchises — teste la recommandation de suites cohérentes
+        # Classic adventures / franchises — test the recommendation of consistent sequels
         {
             "name": "classic_adventures",
             "input": {
