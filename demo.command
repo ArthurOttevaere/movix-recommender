@@ -39,13 +39,15 @@ fi
 BRANCH=$(git branch --show-current 2>/dev/null || echo "?")
 echo "[info] git branch : $BRANCH"
 
-# 4) Open the web browser on the local URL of the site (after a short delay to let the server start).
-URL="http://127.0.0.1:8000"
+# 4) Open the web browser on the profile-selection page (after a short delay to let
+#    the server start). `?switch=1` forces the profile picker to show even if a
+#    profile is already active locally, so the demo always starts on the chooser.
+URL="http://127.0.0.1:8000/profiles.html?switch=1"
 ( sleep 3; open "$URL" >/dev/null 2>&1 || true ) &
 
-echo "[ok] the site will open at $URL"
+echo "[ok] the profile-selection page will open at $URL"
 echo "----------------------------------------------"
-echo "  Choose the profile \"Lenny\" for an immediate demo."
+echo "  Pick the \"Lenny\" profile (Demo · preloaded) for an immediate demo."
 echo "  To stop : Ctrl + C here."
 echo "----------------------------------------------"
 

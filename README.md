@@ -1,6 +1,6 @@
 # Movix — A Movie Recommender System
 
-*Recommender Systems — MLSMM2156, Q2 2026 - Andry Lenny, El Mohcine Moahmed Amine & Ottevaere Arthur*
+*Recommender Systems — MLSMM2156, Q2 2026 - Andry Lenny, El Mohcine Mohamed Amine & Ottevaere Arthur*
 
 ---
 
@@ -30,7 +30,7 @@ much like a streaming service home page.
 
 | Carousel | Model | Algorithm |
 | --- | --- | --- |
-| *Recommended for You* | **Content-based** | Per-user `RidgeCV` regression on content features (genome tags + TMDB) |
+| *Based On What You Like* | **Content-based** | Per-user `RidgeCV` regression on content features (genome tags + TMDB) |
 | *Viewers Like You Also Watched* | **User-based kNN** | Surprise `KNNBaseline`, Pearson-baseline similarity, popularity re-ranking |
 | *Top Picks For You* | **iALS** | Implicit Alternating Least Squares (weighted matrix factorization) |
 | *Discover Something New* | **BPR** | Bayesian Personalized Ranking + novelty re-ranking (β = 0.2) |
