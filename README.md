@@ -67,6 +67,8 @@ implemented from scratch (a similarity measure not provided by Surprise).
 ├── recommender_building.py   builds implicit ratings (powers the demo profile)
 ├── loaders.py / constants.py data loading + dataset configuration
 ├── library_lenny.csv         demo user library
+├── download_artifacts.py     fetches the trained models from the GitHub Release
+├── demo.command              one-click launcher (ensures artifacts, opens the app)
 └── requirements.txt
 ```
 
@@ -103,19 +105,37 @@ That's the whole procedure. The script:
 The downloaded files are **byte-identical** to the authors' trained models, so model
 performance is exactly the same — no training happens on your machine.
 
+> **You can skip this step if you launch with `./demo.command`** (step 4): the
+> launcher runs `download_artifacts.py` for you, so the artifacts are fetched
+> automatically on first run and simply detected on subsequent runs.
+
 ### 4. Run the app
-The backend serves both the REST API and the web UI from a single process:
+
+**Easiest — one command** (macOS / Linux). From the project root:
+```bash
+./demo.command
+```
+On macOS you can also just **double-click `demo.command`** in Finder. The launcher:
+- activates the virtualenv,
+- **checks the model artifacts and downloads them automatically if missing** (so you
+  can skip step 3 entirely — it prints whether they are already present or being
+  fetched),
+- opens your browser on the local URL,
+- starts the server.
+
+**Manual alternative.** The backend serves both the REST API and the web UI from a
+single process:
 ```bash
 uvicorn backend.main:app --reload
 ```
-Open the **localhost link** given in the terminal and pick the **"Lenny"** demo
-profile to see a fully populated home page immediately, or create a profile and go
-through onboarding.
+Either way, open the **localhost link** given in the terminal and pick the
+**"Lenny"** demo profile to see a fully populated home page immediately, or create a
+profile and go through onboarding.
 
-> On startup the backend loads trained artifacts from `backend/artifacts/`. If an
-> artifact is missing, that model gracefully falls back to a popularity baseline, so
-> the app still runs — but for full personalization, make sure step 3 succeeded (or
-> regenerate the artifacts from the modeling notebooks).
+> On startup the backend loads trained artifacts from `backend/artifacts/`. With
+> `./demo.command` these are guaranteed to be in place before the server starts; if
+> you launch `uvicorn` manually, make sure step 3 succeeded first (or regenerate the
+> artifacts from the modeling notebooks).
 
 ### 5. (Recommended) external API keys
 The app runs without keys, but **for the full experience** — real movie posters
