@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Movix — My Profile</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/navbar.css">
+  <link rel="stylesheet" href="css/carousel.css">
+  <link rel="stylesheet" href="css/profile.css">
+  <link rel="stylesheet" href="css/modal.css">
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar" id="navbar">
+    <div class="navbar-left">
+      <a href="index.html" class="navbar-logo" aria-label="Movix">
+        <img src="img/logo.svg" alt="Movix" class="navbar-logo-img">
+      </a>
+      <ul class="navbar-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="index.html#discover">Discover</a></li>
+        <li><a href="index.html#saga">Saga</a></li>
+        <li><a href="index.html#surprise">Surprise Me</a></li>
+        <li><a href="index.html#watchlist">My List</a></li>
+      </ul>
+    </div>
+    <div class="navbar-right">
+      <a href="profile.html" class="navbar-avatar active" id="navbar-avatar" title="My Profile">C</a>
+    </div>
+  </nav>
+
+  <div class="profile-page page-enter">
+
+    <!-- Profile Header -->
+    <header class="profile-header">
+      <div class="profile-avatar" id="profile-header-avatar">C</div>
+      <div class="profile-info">
+        <h1 id="profile-name">My Profile</h1>
+        <p class="profile-member-since" id="profile-member-since"></p>
+      </div>
+      <div style="margin-left: auto; display:flex; gap:8px; align-items:center;">
+        <a href="profiles.html?switch=1" class="btn-secondary" style="font-size:14px;padding:8px 16px;text-decoration:none;">
+          Switch Profile
+        </a>
+        <button onclick="auth.logout()" class="btn-secondary" style="font-size:14px;padding:8px 16px;">
+          Sign Out
+        </button>
+      </div>
+    </header>
+
+    <!-- Stats Grid -->
+    <section class="stats-section">
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card">
+          <span class="stat-number" id="stat-total-ratings">—</span>
+          <span class="stat-label">Films Rated</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number" id="stat-hours-watched">—</span>
+          <span class="stat-label">Hours Watched</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number" id="stat-mean-rating">—</span>
+          <span class="stat-label">Avg Rating</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number" id="stat-streak">—</span>
+          <span class="stat-label">Day Streak</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number" id="stat-watchlist">—</span>
+          <span class="stat-label">My List</span>
+        </div>
+        <div class="stat-card badge-card" id="stat-badge-card" style="display:none">
+          <div class="achievement-badge">
+            <span class="badge-icon" id="badge-icon"></span>
+            <div>
+              <div class="badge-title" id="badge-title"></div>
+              <div class="badge-desc" id="badge-desc"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Top Genres + Most Watched, side by side -->
+    <div class="profile-stats-row">
+      <!-- Top Genres — ranked list (top 5) -->
+      <section class="profile-section">
+        <h2 class="profile-section-title">Top Genres</h2>
+        <ol class="genre-list" id="genre-list">
+          <div class="loading-spinner"><div class="spinner"></div></div>
+        </ol>
+      </section>
+
+      <!-- Most Watched — poster podium (top 3) -->
+      <section class="profile-section" id="most-watched-section" style="display:none">
+        <h2 class="profile-section-title">Most Watched</h2>
+        <div class="poster-podium" id="most-watched-podium"></div>
+      </section>
+
+      <!-- Favorite Sagas — poster podium (top 3) -->
+      <section class="profile-section" id="fav-sagas-section" style="display:none">
+        <h2 class="profile-section-title">Favorite Sagas</h2>
+        <div class="poster-podium" id="fav-sagas-podium"></div>
+      </section>
+    </div>
+
+    <!-- Recently Watched -->
+    <section class="profile-section" id="recently-watched-section" style="display:none">
+      <h2 class="profile-section-title">Recently Watched</h2>
+      <div class="carousel-wrapper">
+        <button class="carousel-arrow carousel-arrow-left" aria-label="Previous" data-dir="-1">
+          <i data-lucide="chevron-left"></i>
+        </button>
+        <div class="profile-rail" id="recently-watched-rail"></div>
+        <button class="carousel-arrow carousel-arrow-right" aria-label="Next" data-dir="1">
+          <i data-lucide="chevron-right"></i>
+        </button>
+      </div>
+    </section>
+
+    <!-- Rating History (most recent first; fills in as you rate films) -->
+    <section class="profile-section" id="rating-history-section">
+      <h2 class="profile-section-title">Rating History</h2>
+      <div class="history-list" id="rating-history"></div>
+    </section>
+
+    <!-- My Watchlist -->
+    <section class="profile-section" id="watchlist-section">
+      <h2 class="profile-section-title">My List</h2>
+      <div class="watchlist-grid" id="watchlist-grid">
+        <div class="loading-spinner"><div class="spinner"></div></div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container"></div>
+
+  <!-- Movie modal (shared) -->
+  <div class="modal-overlay" id="movie-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-container" id="modal-container">
+      <div class="modal-backdrop">
+        <img id="modal-backdrop-img" src="img/placeholder_backdrop.svg" alt="">
+        <div class="modal-backdrop-gradient"></div>
+        <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+        <div class="modal-hero-info">
+          <h2 class="modal-title" id="modal-title"></h2>
+          <div class="modal-quick-meta" id="modal-quick-meta"></div>
+          <div class="modal-actions">
+            <button class="btn-primary" id="modal-play-btn">
+              <i data-lucide="play"></i> Play
+            </button>
+            <button class="btn-watchlist-modal" id="modal-watchlist-btn">+ My List</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="modal-left">
+          <p class="modal-overview" id="modal-overview"></p>
+        </div>
+        <div class="modal-right">
+          <div id="modal-metadata"></div>
+          <div class="rating-section">
+            <p class="meta-label">Your Rating:</p>
+            <div class="star-rating" id="modal-star-rating">
+              <span class="star" data-value="1">★</span>
+              <span class="star" data-value="2">★</span>
+              <span class="star" data-value="3">★</span>
+              <span class="star" data-value="4">★</span>
+              <span class="star" data-value="5">★</span>
+            </div>
+            <p class="rating-label" id="rating-label"></p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-more-section" id="modal-more-section" style="display:none">
+        <h3 class="modal-more-title">More Like This</h3>
+        <div class="modal-more-grid" id="modal-more-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Saga collection modal (lists the films of the chosen saga) -->
+  <div class="modal-overlay" id="saga-modal" role="dialog" aria-modal="true" aria-labelledby="saga-modal-title">
+    <div class="modal-container" id="saga-modal-container">
+      <div class="modal-backdrop">
+        <img id="saga-modal-backdrop" src="img/placeholder_backdrop.svg" alt="">
+        <div class="modal-backdrop-gradient"></div>
+        <button class="modal-close" id="saga-modal-close" aria-label="Close">✕</button>
+        <div class="modal-hero-info">
+          <h2 class="modal-title" id="saga-modal-title"></h2>
+          <p class="modal-quick-meta" id="saga-modal-overview" style="max-width:680px;line-height:1.5"></p>
+        </div>
+      </div>
+      <div class="modal-body" style="display:block">
+        <h3 class="modal-more-title" style="margin-bottom:16px">All films in this saga</h3>
+        <div class="modal-more-grid" id="saga-modal-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="config.js"></script>
+  <script src="config.local.js"></script>
+  <script src="js/profiles.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/tmdb.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/toast.js"></script>
+  <script src="js/ratings.js"></script>
+  <script src="js/watchlist.js"></script>
+  <script src="js/modal.js"></script>
+  <script src="js/saga.js"></script>
+  <script src="js/profile.js"></script>
+  <script>
+    // Inject the active profile's avatar + name into the page header/navbar
+    (function() {
+      const active = (typeof profiles !== 'undefined') ? profiles.active() : null;
+      if (active) {
+        const initial = (active.name || '?').charAt(0).toUpperCase();
+        const url = profiles.avatarSvg(active.avatar, active.name);
+        const nav = document.getElementById('navbar-avatar');
+        const head = document.getElementById('profile-header-avatar');
+        const nameEl = document.getElementById('profile-name');
+        if (nav) {
+          nav.textContent = '';
+          nav.style.background = 'transparent';
+          nav.style.overflow = 'hidden';
+          nav.innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;display:block;object-fit:cover">`;
+        }
+        if (head) {
+          head.textContent = '';
+          head.style.background = 'transparent';
+          head.style.padding = '0';
+          head.innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;display:block;border-radius:50%;object-fit:cover">`;
+        }
+        if (nameEl) nameEl.textContent = active.name;
+      }
+    })();
+
+    initModal();
+    if (typeof initSagaModal === 'function') initSagaModal();
+    lucide.createIcons();
+
+    window.addEventListener('scroll', () => {
+      document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 10);
+    });
+  </script>
+</body>
+</html>

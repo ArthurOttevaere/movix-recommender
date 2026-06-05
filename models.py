@@ -6,7 +6,7 @@ import numpy as np
 import random as rd
 from surprise import AlgoBase
 from surprise import KNNWithMeans
-from surprise import SVD
+from surprise import SVD, SVDpp
 from surprise.prediction_algorithms.predictions import PredictionImpossible  # new import
 from constants import Constant as C  # new import
 from loaders import load_items  # new import
@@ -48,6 +48,34 @@ def get_top_n(predictions, n):
         top_n[uid].append((iid, est))
 
     # Then sort the predictions for each user and retrieve the k highest ones.
+    for uid, user_ratings in top_n.items():
+        rd.shuffle(user_ratings)
+        user_ratings.sort(key=lambda x: x[1], reverse=True)
+        top_n[uid] = user_ratings[:n]
+
+    return top_n
+
+# Re ranking function
+def get_top_n_reranked(predictions, item_freq, alpha=0.1, n=80):
+    """
+    Returns the top-N recommendations for each user by combining
+    the predicted rating and the logarithmic popularity of the item.
+    """
+    import math
+    rd.seed(0)
+
+    # 1. Map the predictions by user
+    top_n = defaultdict(list)
+    for uid, iid, true_r, est, _ in predictions:
+        # Compute the combined score
+        # item_freq.get(iid, 1) gives the number of times the item has been viewed
+        freq = item_freq.get(iid, 1)
+        score_pop = math.log1p(freq) # log(1 + freq) to smooth out large differences
+        
+        score_final = est + alpha * score_pop
+        top_n[uid].append((iid, score_final))
+
+    # 2. Sort and extract the N best
     for uid, user_ratings in top_n.items():
         rd.shuffle(user_ratings)
         user_ratings.sort(key=lambda x: x[1], reverse=True)
@@ -98,6 +126,167 @@ class ModelBaseline4(SVD):
     def __init__(self, random_state=1):
         SVD.__init__(self, n_factors=100, random_state=random_state)
 
+
+# iALS — Weighted Regularized Matrix Factorization (WRMF)
+# Hu Y. et al. (2008). "Collaborative Filtering for Implicit Feedback Datasets." ICDM, pp. 263-272.
+# Uses explicit ratings as confidence weights: c_ui = 1 + alpha * r_ui
+# A 5-star film contributes more to the optimisation than a 1-star film.
+# ALS training — very fast (~30 sec on ML-100K).
+class ModeliALS(AlgoBase):
+    def __init__(self, factors=50, iterations=20, regularization=0.01,
+                 alpha=40, random_state=42, rerank_popularity=False, rerank_alpha=0.1):
+        AlgoBase.__init__(self)
+        self.factors        = factors
+        self.iterations     = iterations
+        self.regularization = regularization
+        self.alpha          = alpha   # confidence scaling — Hu et al. (2008) §3: c_ui = 1 + alpha * r_ui
+        self.random_state   = random_state
+        self._als           = None
+        self.rerank_popularity = rerank_popularity
+        self.rerank_alpha = rerank_alpha
+
+
+    def fit(self, trainset):
+        AlgoBase.fit(self, trainset)
+        from implicit.als import AlternatingLeastSquares
+        from scipy.sparse import csr_matrix
+
+        rows, cols, vals = [], [], []
+        for u in range(trainset.n_users):
+            for iid, r in trainset.ur[u]:
+                rows.append(u)
+                cols.append(iid)
+                vals.append(1.0 + self.alpha * r)  # confidence weight c_ui = 1 + alpha * r_ui
+
+        user_items = csr_matrix(
+            (vals, (rows, cols)),
+            shape=(trainset.n_users, trainset.n_items),
+        )
+        self._als = AlternatingLeastSquares(
+            factors=self.factors,
+            iterations=self.iterations,
+            regularization=self.regularization,
+            random_state=self.random_state,
+        )
+        self._als.fit(user_items)
+        return self
+
+    def estimate(self, u, i):
+        if self._als is None:
+            raise PredictionImpossible("Model not fitted.")
+        if not (self.trainset.knows_user(u) and self.trainset.knows_item(i)):
+            raise PredictionImpossible("User or item unknown.")
+        return float(np.dot(self._als.user_factors[u], self._als.item_factors[i]))
+
+# BPR-MF — Bayesian Personalized Ranking with Matrix Factorisation
+# Rendle et al. (2009) "BPR: Bayesian Personalized Ranking from Implicit Feedback", UAI '09.
+# Optimises pairwise ranking loss: rated items ranked above unrated items.
+# RMSE/MAE are not meaningful for this model — only LOO and full-catalogue metrics matter.
+class ModelBPR(AlgoBase):
+    def __init__(self, factors=64, learning_rate=0.01, regularization=0.01, iterations=100, random_state=42, rerank_popularity=False, rerank_alpha=0.1):
+        AlgoBase.__init__(self)
+        self.factors = factors
+        self.learning_rate = learning_rate
+        self.regularization = regularization
+        self.iterations = iterations
+        self.random_state = random_state
+        self.rerank_popularity = rerank_popularity
+        self.rerank_alpha = rerank_alpha
+        self._bpr = None
+
+    def fit(self, trainset):
+        AlgoBase.fit(self, trainset)
+        from implicit.bpr import BayesianPersonalizedRanking
+        from scipy.sparse import csr_matrix
+        rows, cols, vals = [], [], []
+        for u in range(trainset.n_users):
+            for iid, _ in trainset.ur[u]:
+                rows.append(u)
+                cols.append(iid)
+                vals.append(1.0)
+        user_items = csr_matrix((vals, (rows, cols)), shape=(trainset.n_users, trainset.n_items))
+        self._bpr = BayesianPersonalizedRanking(
+            factors=self.factors,
+            learning_rate=self.learning_rate,
+            regularization=self.regularization,
+            iterations=self.iterations,
+            random_state=self.random_state,
+        )
+        self._bpr.fit(user_items)
+        return self
+
+    def estimate(self, u, i):
+        if self._bpr is None:
+            raise PredictionImpossible("Model not fitted.")
+        if not (self.trainset.knows_user(u) and self.trainset.knows_item(i)):
+            raise PredictionImpossible("User or item unknown.")
+        return float(np.dot(self._bpr.user_factors[u], self._bpr.item_factors[i]))
+
+
+# BPR-MF + Popularity Penalty for novelty — suited for "Discover Something New".
+# Overrides test() to apply a log-popularity penalty to BPR scores before ranking.
+# β controls the relevance/novelty trade-off: 0.0 = pure BPR, 1.0 = pure novelty.
+# Source: Abdollahpouri et al. (2019). "Managing Popularity Bias in Recommender
+#         Systems with Personalized Re-ranking." FLAIRS'19.
+class ModelBPRNovelty(ModelBPR):
+    def __init__(self, beta=0.2,
+                 factors=64, learning_rate=0.01, regularization=0.01,
+                 iterations=100, random_state=42, rerank_popularity=False, rerank_alpha=0.1):
+        ModelBPR.__init__(self, factors=factors, learning_rate=learning_rate,
+                          regularization=regularization, iterations=iterations,
+                          random_state=random_state, rerank_popularity=False, rerank_alpha=0.1)
+        self.beta = beta          # novelty weight: 0 = pure BPR, 1 = pure novelty
+        self._log_pop = None      # log-popularity vector indexed by inner item id
+        self.rerank_popularity = rerank_popularity
+        self.rerank_alpha = rerank_alpha
+
+
+    def fit(self, trainset):
+        ModelBPR.fit(self, trainset)
+        # popularity(i) = number of users who rated item i in the trainset
+        pop = np.array([len(trainset.ir[i]) for i in range(trainset.n_items)], dtype=np.float64)
+        self._log_pop = np.log1p(pop)   # log(1 + pop) — stable at 0
+        return self
+
+    def test(self, testset):
+        from collections import defaultdict
+        from surprise.prediction_algorithms.predictions import Prediction
+
+        raw_preds = ModelBPR.test(self, testset)
+
+        # Group predictions by user
+        user_preds = defaultdict(list)
+        for pred in raw_preds:
+            user_preds[pred.uid].append(pred)
+
+        reranked = []
+        log_pop_max = float(self._log_pop.max()) if self._log_pop.max() > 0 else 1.0
+
+        for uid, preds in user_preds.items():
+            scores = np.array([p.est for p in preds])
+            s_min, s_max = scores.min(), scores.max()
+            norm_scores = (scores - s_min) / (s_max - s_min) if s_max > s_min else np.full(len(preds), 0.5)
+
+            # Popularity penalty: penalise popular items proportionally
+            # Items absent from the trainset (can occur in split evaluation) get penalty 0
+            def _pop_penalty(raw_iid):
+                try:
+                    return self._log_pop[self.trainset.to_inner_iid(raw_iid)] / log_pop_max
+                except ValueError:
+                    return 0.0
+
+            adjusted = np.array([
+                (1 - self.beta) * norm_scores[k] - self.beta * _pop_penalty(p.iid)
+                for k, p in enumerate(preds)
+            ])
+
+            for k, pred in enumerate(preds):
+                reranked.append(Prediction(pred.uid, pred.iid, pred.r_ui,
+                                           float(adjusted[k]), pred.details))
+
+        return reranked
+
+
 # KNN with means, using msd baseline similarity measure and user-based collaborative filtering
 class ModelBaseline5(KNNWithMeans):
     def __init__(self, random_state=1):
@@ -105,10 +294,12 @@ class ModelBaseline5(KNNWithMeans):
 
 # User-based model
 class UserBased(AlgoBase):
-    def __init__(self, k=3, min_k=1, sim_options={}, **kwargs):
+    def __init__(self, k=3, min_k=1, sim_options={}, rerank_popularity=False, rerank_alpha=0.1,**kwargs):
         AlgoBase.__init__(self, sim_options=sim_options, **kwargs)
         self.k = k
         self.min_k = min_k
+        self.rerank_popularity = rerank_popularity
+        self.rerank_alpha = rerank_alpha
 
     def fit(self, trainset):
         AlgoBase.fit(self, trainset)
@@ -202,13 +393,13 @@ class UserBased(AlgoBase):
                 
                 if support >= min_support:
                     if sim_name == 'msd':
-                        # Ta logique MSD actuelle
+                        # Logique MSD : 1 / (1 + mean squared difference)
                         sq_diff = np.sum((row_i[mask_intersection] - row_j[mask_intersection])**2)
                         msd = sq_diff / support
                         similarity = 1 / (msd + 1)
                     
                     elif sim_name == 'jacard':
-                        # Logique Jaccard : intersection / union
+                        # Jaccard Logic : intersection / union
                         mask_union = ~np.isnan(row_i) | ~np.isnan(row_j)
                         union_count = np.sum(mask_union)
                         similarity = support / union_count if union_count > 0 else 0
@@ -218,10 +409,13 @@ class UserBased(AlgoBase):
         
 # Content-based model        
 class ContentBased(AlgoBase):
-    def __init__(self, features_method, regressor_method, knn_k=30):
+    def __init__(self, features_method, regressor_method, knn_k=30,
+             rerank_popularity=False, rerank_alpha=0.1):
         AlgoBase.__init__(self)
         self.regressor_method = regressor_method
         self.knn_k = knn_k
+        self.rerank_popularity = rerank_popularity
+        self.rerank_alpha = rerank_alpha
         self.feature_groups = None
         self.content_features = self.create_content_features(features_method)
 
@@ -541,7 +735,7 @@ class ContentBased(AlgoBase):
             return df_features.fillna(0)
 
         elif features_method == "all_content_tmdb_tags1128":
-            # Pareil que all_content_tmdb mais tags TF-IDF max_features=1128 (= dim genome).
+            # Same as all_content_tmdb but tags TF-IDF max_features=1128 (= dim genome).
             df_genome_scaled = self._load_genome_scaled()
             df_tags = self._load_tags(max_features=1128, ngrams=(1, 2), sublinear=True, min_df=3)
             df_year, df_genres = self._load_year_genres(df_items, with_decades=True)
@@ -564,14 +758,14 @@ class ContentBased(AlgoBase):
             return df_features.fillna(0)
 
         elif features_method == "genome_tags1128_only":
-            # Hypothèse minimale : juste genome (1128) + tags(1128). Match exact de l'indice ami.
+            # Minimal hypothesis : just genome (1128) + tags(1128). Exact match of the friend index.
             df_genome_scaled = self._load_genome_scaled()
             df_tags = self._load_tags(max_features=1128, ngrams=(1, 2), sublinear=True, min_df=3)
             df_features = df_genome_scaled.join(df_tags, how='outer')
             return df_features.fillna(0)
 
         elif features_method == "all_content_tmdb_emb_tags1128":
-            # Combo : tags1128 + TMDB + SBERT embeddings. Stack des 2 gains.
+            # Combo : tags1128 + TMDB + SBERT embeddings. Stack of the 2 gains.
             df_genome_scaled = self._load_genome_scaled()
             df_tags = self._load_tags(max_features=1128, ngrams=(1, 2), sublinear=True, min_df=3)
             df_year, df_genres = self._load_year_genres(df_items, with_decades=True)
@@ -587,7 +781,7 @@ class ContentBased(AlgoBase):
             return df_features.fillna(0)
 
         elif features_method == "all_content_tmdb_tags2000":
-            # Pousse plus loin : tags max=2000 (au-delà de la dim genome).
+            # Goes further : tags max=2000.
             df_genome_scaled = self._load_genome_scaled()
             df_tags = self._load_tags(max_features=2000, ngrams=(1, 2), sublinear=True, min_df=3)
             df_year, df_genres = self._load_year_genres(df_items, with_decades=True)
@@ -788,6 +982,23 @@ class ContentBased(AlgoBase):
                 except Exception:
                     self.user_profile[u] = None
 
+        # Reranking 
+        elif self.regressor_method == 'ridge_fixed':
+            if len(y) > 0:
+                from sklearn.linear_model import Ridge
+                from sklearn.preprocessing import StandardScaler
+                from sklearn.pipeline import make_pipeline
+                
+            
+                model = make_pipeline(
+                    StandardScaler(with_mean=False), # False because matrix is sparse and we don't want to densify it
+                    Ridge(alpha=100.0, fit_intercept=True)
+                )
+                model.fit(X, y)
+                self.user_profile[u] = model
+            else:
+                self.user_profile[u] = None
+
         elif self.regressor_method in (
             'linear_regression_false', 'linear_regression_true', 'random_forest', 'ridge', 'ridge_cv', 'ridge_cv_bias',
             'ridge_cv_centered', 'ridge_knn_blend',
@@ -934,6 +1145,20 @@ class ContentBased(AlgoBase):
 
         elif self.regressor_method == 'stacking_groups':
             return float(np.clip(self._predict_stacking(u, raw_item_id), lo, hi))
+        
+        # Reranking 
+        elif self.regressor_method == 'ridge_fixed':
+            if self.content_features is None or raw_item_id not in self.content_features.index:
+                return float(np.clip(self.user_means.get(u, self.global_mean), lo, hi))
+            
+            user_model = self.user_profile.get(u, None)
+            if user_model is None:
+                return float(np.clip(self.user_means.get(u, self.global_mean), lo, hi))
+                
+            item_features = self.content_features.loc[[raw_item_id], :].values
+            
+            score = user_model.predict(item_features)[0]
+            return float(np.clip(score, lo, hi))
 
         return self.global_mean
 
@@ -954,3 +1179,134 @@ class ContentBased(AlgoBase):
         if series is None:
             return {}
         return series.to_dict()
+    
+class UserBased_tuned(AlgoBase):
+    def __init__(self, k=40, min_k=5, sim_options={}, **kwargs):
+        AlgoBase.__init__(self, sim_options=sim_options, **kwargs)
+        self.k = k
+        self.min_k = min_k
+
+    def fit(self, trainset):
+        AlgoBase.fit(self, trainset)
+        
+        # 1. Computing the ratings matrix
+        self.compute_rating_matrix()
+        
+        # 2. Compute the similarity matrix
+        self.compute_similarity_matrix()
+        
+        # 3. Computing the mean rating of every user
+        self.mean_ratings = []
+        for u in range(self.trainset.n_users):
+            user_ratings = [r for (_, r) in self.trainset.ur[u]]
+            self.mean_ratings.append(np.mean(user_ratings))
+        
+        return self
+
+    def estimate(self, u, i):
+        if not (self.trainset.knows_user(u) and self.trainset.knows_item(i)):
+            raise PredictionImpossible('User and/or item is unknown.')
+        
+        # The estimate is by default set to the user average rating
+        estimate = self.mean_ratings[u]
+        
+        # Step 1: Create the peer group of user u for item i
+        # Potential neighbor: (neighbor_inner_id, similarity_value, rating)
+        potential_neighbors = []
+        
+        # Access ratings of item i with self.trainset.ir[i]
+        for (v, r_vi) in self.trainset.ir[i]:
+            if v == u:
+                continue
+            
+            sim_uv = self.sim[u, v]
+            if sim_uv > 0:
+                potential_neighbors.append((v, sim_uv, r_vi))
+        
+        # Pick top neighbors efficiently using heapq
+        top_neighbors = heapq.nlargest(self.k, potential_neighbors, key=lambda x: x[1])
+        
+        # Step 2: Compute the weighted average
+        actual_k = len(top_neighbors)
+        
+        # If actual_k is above min_k, we add the weighted average component
+        if actual_k >= self.min_k:
+            weighted_sum = 0
+            sum_sim = 0
+            
+            for (v, sim_uv, r_vi) in top_neighbors:
+                # Weighted average calculation: sim * (rating - neighbor_mean)
+                weighted_sum += sim_uv * (r_vi - self.mean_ratings[v])
+                sum_sim += abs(sim_uv)
+            
+            if sum_sim > 0:
+                estimate += (weighted_sum / sum_sim)
+        
+        return estimate
+
+    def compute_rating_matrix(self):
+        m = self.trainset.n_users
+        n = self.trainset.n_items
+        
+        # Preallocate an mxn numpy array with NaN
+        self.ratings_matrix = np.empty((m, n))
+        self.ratings_matrix[:] = np.nan
+        
+        # Access ratings of a specific user with self.trainset.ur[uiid]
+        for uiid in range(m):
+            for (iiid, rating) in self.trainset.ur[uiid]:
+                self.ratings_matrix[uiid, iiid] = rating
+
+    def compute_similarity_matrix(self):
+        m = self.trainset.n_users
+        self.sim = np.eye(m)
+        min_support = self.sim_options.get('min_support', 5)
+        
+        # Retrieve the similarity metric name from sim_options (default: msd)
+        sim_name = self.sim_options.get('name', 'msd').lower()
+        
+        for i in range(m):
+            for j in range(i + 1, m):
+                row_i = self.ratings_matrix[i]
+                row_j = self.ratings_matrix[j]
+                
+                # Intersection: items rated by BOTH users
+                mask_intersection = ~np.isnan(row_i - row_j)
+                support = np.sum(mask_intersection)
+                
+                
+                current_similarity = 0.0
+                
+                if support >= min_support:
+                    if sim_name == 'msd':
+                        sq_diff = np.sum((row_i[mask_intersection] - row_j[mask_intersection])**2)
+                        msd = sq_diff / support
+                        current_similarity = 1 / (msd + 1)
+                    
+                    elif sim_name == 'jacard':
+                        mask_union = ~np.isnan(row_i) | ~np.isnan(row_j)
+                        union_count = np.sum(mask_union)
+                        current_similarity = support / union_count if union_count > 0 else 0.0
+                    
+                    elif sim_name == 'cosine_jaccard':
+                        # 1. Extracting the vectors on the intersection
+                        u_vec = row_i[mask_intersection]
+                        v_vec = row_j[mask_intersection]
+                        
+                        # 2. Calculating the base Cosine    
+                        dot_product = np.sum(u_vec * v_vec)
+                        norm_u = np.sqrt(np.sum(u_vec**2))
+                        norm_v = np.sqrt(np.sum(v_vec**2))
+                        cosine = dot_product / (norm_u * norm_v) if (norm_u * norm_v) > 0 else 0.0
+                        
+                        # 3. Calculating the Jaccard index
+                        mask_union = ~np.isnan(row_i) | ~np.isnan(row_j)
+                        union_count = np.sum(mask_union)
+                        jaccard = support / union_count if union_count > 0 else 0.0
+                        
+                        # 4. Fusion of the two metrics
+                        current_similarity = float(cosine * jaccard)
+                    
+                # Securised assignment in the global matrix
+                self.sim[i, j] = current_similarity
+                self.sim[j, i] = current_similarity

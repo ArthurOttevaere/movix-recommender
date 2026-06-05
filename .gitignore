@@ -5,3 +5,14 @@ venv/
 .ipynb_checkpoints/
 __pycache__/
 data/
+backend/artifacts/
+*.pkl
+*.npz
+*.npy
+.env
+frontend/config.local.js
+
+# Editor / tooling / cache (no effect on runtime)
+.claude/
+.pytest_cache/
+.vscode/

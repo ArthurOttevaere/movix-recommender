@@ -1,0 +1,161 @@
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 0 4%;
+  height: 112px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent);
+  transition: background 0.3s ease;
+  z-index: 1000;
+}
+
+.navbar.scrolled {
+  background: rgba(20, 20, 20, 0.97);
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.navbar-logo {
+  font-family: 'Bebas Neue', 'Impact', sans-serif;
+  font-size: 28px;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  transition: opacity var(--transition), transform var(--transition);
+}
+
+.navbar-logo:hover {
+  opacity: 0.92;
+  transform: scale(1.02);
+}
+
+.navbar-logo-img {
+  height: 168px;
+  width: auto;
+  display: block;
+}
+
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.navbar-links a {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: color var(--transition);
+}
+
+.navbar-links a:hover,
+.navbar-links a.active {
+  color: var(--text-primary);
+}
+
+.navbar-links a {
+  position: relative;
+}
+
+/* Indicateur d'onglet actif : présent sur tous les liens mais réduit à 0 ;
+   il grandit/rétrécit en douceur (scaleX) au changement d'onglet → transition fluide. */
+.navbar-links a::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.navbar-links a.active::after {
+  transform: scaleX(1);
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.navbar-search-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background var(--transition-fast), border-color var(--transition-fast),
+    color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.navbar-search-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: var(--text-primary);
+  transform: scale(1.07);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.04);
+}
+
+.navbar-search-btn:active {
+  transform: scale(0.95);
+}
+
+.navbar-search-btn svg {
+  width: 19px;
+  height: 19px;
+  transition: transform var(--transition);
+}
+
+.navbar-search-btn:hover svg {
+  transform: rotate(-10deg) scale(1.05);
+}
+
+.navbar-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  color: white;
+  transition: opacity var(--transition);
+  flex-shrink: 0;
+}
+
+.navbar-avatar:hover {
+  opacity: 0.85;
+}
+
+/* Hide links on mobile */
+@media (max-width: 768px) {
+  .navbar-links {
+    display: none;
+  }
+}

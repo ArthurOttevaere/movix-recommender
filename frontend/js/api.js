@@ -1,0 +1,139 @@
+// Global utility — available to all scripts loaded after api.js
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+
+const api = {
+  async getOnboardingMovies() {
+    if (CONFIG.USE_MOCK) {
+      return fetch('mock/onboarding.json').then(r => r.json());
+    }
+    return fetch(`${CONFIG.API_BASE_URL}/onboarding/movies`).then(r => r.json());
+  },
+
+  async submitOnboarding(ratings) {
+    if (CONFIG.USE_MOCK) {
+      const token = 'mock_session_' + Date.now();
+      if (typeof pstore !== 'undefined') pstore.set('user_token', token);
+      else localStorage.setItem('user_token', token);
+      return { user_token: token, status: 'ok' };
+    }
+    // Le backend attend { ratings: {"movieId": score, ...} }
+    const ratingsDict = {};
+    ratings.forEach(r => { ratingsDict[String(r.movie_id)] = r.rating; });
+    const data = await fetch(`${CONFIG.API_BASE_URL}/onboarding/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ratings: ratingsDict })
+    }).then(r => r.json());
+    // Stocker le token pour que auth.isLoggedIn() retourne true
+    if (data.user_token) {
+      if (typeof pstore !== 'undefined') pstore.set('user_token', data.user_token);
+      else localStorage.setItem('user_token', data.user_token);
+    }
+    return data;
+  },
+
+  async getRecommendations(userToken) {
+    if (CONFIG.USE_MOCK) {
+      return fetch('mock/recommendations.json').then(r => r.json());
+    }
+    const res = await fetch(`${CONFIG.API_BASE_URL}/recommendations/${userToken}`);
+    if (!res.ok) {
+      // Token inconnu/expiré (souvent après un redémarrage serveur) → on remonte le
+      // statut pour que l'appelant puisse reconstruire la session (voir home.js).
+      const err = new Error(`recommendations HTTP ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+    return res.json();
+  },
+
+  async getSimilar(movieId) {
+    if (CONFIG.USE_MOCK) {
+      const recs = await this.getRecommendations(null);
+      return { movies: recs.carousels.flatMap(c => c.movies).slice(0, 12) };
+    }
+    return fetch(`${CONFIG.API_BASE_URL}/similar/${movieId}`).then(r => r.json());
+  },
+
+  async getMovie(movieId, userToken) {
+    const recs = await this.getRecommendations(userToken);
+    const allMovies = [
+      recs.hero,
+      ...recs.carousels.flatMap(c => c.movies)
+    ];
+    const found = allMovies.find(m => m.movie_id === movieId);
+    const tmdbId = found?.tmdb_id || movieId;
+    return getMovieDetails(tmdbId);
+  },
+
+  async rateMovie(userToken, movieId, rating) {
+    if (CONFIG.USE_MOCK) {
+      console.log(`[MOCK] Rate movie ${movieId}: ${rating}`);
+      return { status: 'ok', profile_updated: true };
+    }
+    return fetch(`${CONFIG.API_BASE_URL}/rate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_token: userToken, movie_id: movieId, rating })
+    }).then(r => r.json());
+  },
+
+  async toggleWatchlist(userToken, movieId, action) {
+    const wl = JSON.parse((typeof pstore !== 'undefined' ? pstore.get('watchlist') : localStorage.getItem('watchlist')) || '[]');
+    // unshift → les films fraîchement ajoutés apparaissent tout en haut de My List.
+    if (action === 'add' && !wl.includes(movieId)) wl.unshift(movieId);
+    if (action === 'remove') {
+      const idx = wl.indexOf(movieId);
+      if (idx > -1) wl.splice(idx, 1);
+    }
+    if (typeof pstore !== 'undefined') pstore.set('watchlist', JSON.stringify(wl));
+    else localStorage.setItem('watchlist', JSON.stringify(wl));
+
+    // Mémoire des retraits MANUELS : le seed wishlist (cf. maybeSeedLennyWatchlist)
+    // ré-ajoute à chaque chargement les films wishlist de la source SAUF ceux que
+    // l'utilisateur a explicitement retirés ici. « quoi qu'il arrive sauf retrait manuel. »
+    if (typeof pstore !== 'undefined') {
+      const removed = new Set(JSON.parse(pstore.get('wl_removed') || '[]'));
+      if (action === 'remove') removed.add(movieId);
+      if (action === 'add') removed.delete(movieId);
+      pstore.set('wl_removed', JSON.stringify([...removed]));
+    }
+
+    if (!CONFIG.USE_MOCK) {
+      return fetch(`${CONFIG.API_BASE_URL}/watchlist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_token: userToken, movie_id: movieId, action })
+      }).then(r => r.json());
+    }
+    return { status: 'ok' };
+  },
+
+  async getProfile(userToken) {
+    if (CONFIG.USE_MOCK) {
+      const ratings = JSON.parse((typeof pstore !== 'undefined' ? pstore.get('ratings') : localStorage.getItem('ratings')) || '{}');
+      const watchlistIds = JSON.parse((typeof pstore !== 'undefined' ? pstore.get('watchlist') : localStorage.getItem('watchlist')) || '[]');
+      const base = await fetch('mock/profile.json').then(r => r.json());
+
+      // Merge localStorage ratings into history
+      const localHistory = Object.entries(ratings).map(([id, r]) => ({
+        movie_id: parseInt(id),
+        title: `Film #${id}`,
+        rating: r,
+        timestamp: new Date().toISOString()
+      }));
+
+      return {
+        ...base,
+        total_ratings: Object.keys(ratings).length || base.total_ratings,
+        watchlist: watchlistIds,
+        rating_history: base.rating_history.length ? base.rating_history : localHistory
+      };
+    }
+    return fetch(`${CONFIG.API_BASE_URL}/profile/${userToken}`).then(r => r.json());
+  }
+};

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Movix — Get Started</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/onboarding.css">
+</head>
+<body>
+
+  <div class="onboarding-page page-enter">
+    <a href="profiles.html?switch=1" class="onboarding-logo" aria-label="Movix">
+      <img src="img/logo.svg" alt="Movix" class="onboarding-logo-img">
+    </a>
+
+    <header class="onboarding-header">
+      <h1 class="onboarding-title">What Do You Enjoy Watching?</h1>
+      <p class="onboarding-subtitle">
+        Rate at least <strong>5 films</strong> to personalize your recommendations.
+        The more you rate, the better it gets.
+      </p>
+      <p id="onboarding-profile-label" style="font-size:13px;color:var(--text-muted);margin-top:6px"></p>
+    </header>
+
+    <div class="onboarding-grid" id="onboarding-grid">
+      <div class="loading-spinner">
+        <div class="spinner"></div>
+        Loading…
+      </div>
+    </div>
+  </div>
+
+  <!-- Fixed footer bar -->
+  <div class="onboarding-footer">
+    <p class="onboarding-counter">
+      <strong id="rated-count">0</strong> film(s) rated ·
+      <span class="counter-accent">5 required</span>
+    </p>
+    <button class="btn-start" id="btn-start" disabled>Get Started →</button>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="config.js"></script>
+  <script src="config.local.js"></script>
+  <script src="js/profiles.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/tmdb.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    const MIN_RATINGS = 5;
+    const onboardingRatings = {};
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Need an active profile to do onboarding — otherwise back to the chooser
+      if (!profiles.activeId()) {
+        window.location.href = 'profiles.html';
+        return;
+      }
+      if (auth.isLoggedIn()) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      const active = profiles.active();
+      if (active) {
+        const label = document.getElementById('onboarding-profile-label');
+        if (label) label.textContent = `Setting up "${active.name}" · `
+          + `<a href="profiles.html?switch=1" style="color:var(--accent)">Switch profile</a>`;
+        // textContent doesn't render the link — use innerHTML safely (active.name is escaped below)
+        if (label) {
+          label.innerHTML = `Setting up "${escapeHtml(active.name)}" · `
+            + `<a href="profiles.html?switch=1" style="color:var(--accent)">Switch profile</a>`;
+        }
+      }
+
+      const data = await api.getOnboardingMovies();
+      renderGrid(data.movies);
+    });
+
+    function renderGrid(movies) {
+      const grid = document.getElementById('onboarding-grid');
+      grid.innerHTML = '';
+
+      movies.forEach(movie => {
+        const card = document.createElement('div');
+        card.className = 'onboarding-card';
+        card.dataset.movieId = movie.movie_id;
+        card.dataset.tmdbId = movie.tmdb_id;
+
+        card.innerHTML = `
+          <img class="onboarding-card-poster" src="img/placeholder_poster.svg" alt="${escapeHtml(movie.title)}" loading="lazy">
+          <div class="onboarding-card-check">✓</div>
+          <div class="onboarding-card-info">
+            <div class="onboarding-card-title">${escapeHtml(movie.title)}</div>
+            <div class="onboarding-card-year">${movie.year}</div>
+          </div>
+          <div class="onboarding-card-stars">
+            ${[1,2,3,4,5].map(v => `<span class="onboarding-star" data-value="${v}" data-movie="${movie.movie_id}">★</span>`).join('')}
+          </div>
+        `;
+
+        card.addEventListener('click', e => {
+          if (!e.target.closest('.onboarding-card-stars')) {
+            toggleCardSelect(card, movie.movie_id);
+          }
+        });
+
+        card.querySelectorAll('.onboarding-star').forEach(star => {
+          const value = parseInt(star.dataset.value);
+
+          star.addEventListener('mouseenter', () => {
+            highlightOnboardingStars(card, value);
+          });
+          star.addEventListener('mouseleave', () => {
+            const saved = onboardingRatings[movie.movie_id] || 0;
+            highlightOnboardingStars(card, saved);
+          });
+          star.addEventListener('click', e => {
+            e.stopPropagation();
+            if (!card.classList.contains('selected')) {
+              card.classList.add('selected');
+            }
+            setOnboardingRating(card, movie.movie_id, value);
+          });
+        });
+
+        grid.appendChild(card);
+
+        getMovieDetails(movie.tmdb_id).then(details => {
+          const img = card.querySelector('.onboarding-card-poster');
+          if (img) img.src = details.poster_url;
+        }).catch(() => {});
+      });
+    }
+
+    function toggleCardSelect(card, movieId) {
+      const isSelected = card.classList.contains('selected');
+      if (isSelected) {
+        card.classList.remove('selected');
+        delete onboardingRatings[movieId];
+        highlightOnboardingStars(card, 0);
+      } else {
+        card.classList.add('selected');
+        if (!onboardingRatings[movieId]) {
+          setOnboardingRating(card, movieId, 3);
+        }
+      }
+      updateCounter();
+    }
+
+    function setOnboardingRating(card, movieId, value) {
+      onboardingRatings[movieId] = value;
+      highlightOnboardingStars(card, value);
+      updateCounter();
+    }
+
+    function highlightOnboardingStars(card, count) {
+      card.querySelectorAll('.onboarding-star').forEach((star, i) => {
+        star.style.color = i < count ? 'var(--star-color)' : 'var(--text-muted)';
+      });
+    }
+
+    function updateCounter() {
+      const count = Object.keys(onboardingRatings).length;
+      document.getElementById('rated-count').textContent = count;
+      const btn = document.getElementById('btn-start');
+      btn.disabled = count < MIN_RATINGS;
+    }
+
+    document.getElementById('btn-start').addEventListener('click', async () => {
+      const ratings = Object.entries(onboardingRatings).map(([id, r]) => ({
+        movie_id: parseInt(id),
+        rating: r
+      }));
+
+      try {
+        const result = await api.submitOnboarding(ratings);
+        if (!result || !result.user_token) {
+          throw new Error('Réponse serveur invalide : ' + JSON.stringify(result));
+        }
+        // Stocker le token ici (défensif — aussi fait dans api.js)
+        pstore.set('user_token', result.user_token);
+        const stored = {};
+        ratings.forEach(r => { stored[r.movie_id] = r.rating; });
+        pstore.set('ratings', JSON.stringify(stored));
+        if (!pstore.get('member_since')) {
+          pstore.set('member_since', new Date().toISOString().split('T')[0]);
+        }
+        pstore.set('last_active', new Date().toDateString());
+        pstore.set('streak_days', '1');
+        const activeId = profiles.activeId();
+        if (activeId) profiles.markOnboarded(activeId);
+        window.location.href = 'index.html';
+      } catch (err) {
+        console.error('Onboarding submit failed:', err);
+        alert('Something went wrong: ' + err.message);
+      }
+    });
+
+    function escapeHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+  </script>
+</body>
+</html>

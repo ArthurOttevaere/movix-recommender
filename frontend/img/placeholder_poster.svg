@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="185" height="278" viewBox="0 0 185 278">
+  <rect width="185" height="278" fill="#2a2a2a"/>
+  <rect x="72" y="99" width="41" height="50" rx="4" fill="#6b6b6b"/>
+  <rect x="57" y="159" width="71" height="8" rx="4" fill="#6b6b6b"/>
+  <rect x="67" y="175" width="51" height="6" rx="3" fill="#444"/>
+  <circle cx="92" cy="117" r="14" fill="#444"/>
+  <text x="92" y="230" text-anchor="middle" fill="#6b6b6b" font-size="11" font-family="Arial">Chargement...</text>
+</svg>

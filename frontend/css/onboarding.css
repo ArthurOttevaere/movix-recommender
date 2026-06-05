@@ -1,0 +1,227 @@
+.onboarding-page {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 4% 100px;
+}
+
+.onboarding-logo {
+  font-family: 'Bebas Neue', 'Impact', sans-serif;
+  font-size: 32px;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  margin-bottom: 40px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.onboarding-logo-img {
+  height: 64px;
+  width: auto;
+  display: block;
+}
+
+.onboarding-header {
+  text-align: center;
+  margin-bottom: 40px;
+  max-width: 560px;
+}
+
+.onboarding-title {
+  font-family: 'Bebas Neue', 'Impact', sans-serif;
+  font-size: 3rem;
+  letter-spacing: 0.02em;
+  margin-bottom: 10px;
+}
+
+.onboarding-subtitle {
+  font-size: 16px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Movies grid */
+.onboarding-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 900px;
+  margin-bottom: 40px;
+}
+
+.onboarding-card {
+  position: relative;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--bg-elevated);
+  transition: transform 0.2s;
+}
+
+.onboarding-card:hover {
+  transform: scale(1.03);
+}
+
+.onboarding-card-poster {
+  width: 100%;
+  aspect-ratio: 2/3;
+  object-fit: cover;
+  display: block;
+}
+
+.onboarding-card-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, transparent 100%);
+  padding: 24px 10px 10px;
+}
+
+.onboarding-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.onboarding-card-year {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Selected state */
+.onboarding-card.selected {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+}
+
+.onboarding-card-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  background: var(--accent);
+  border-radius: 50%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.onboarding-card.selected .onboarding-card-check {
+  display: flex;
+}
+
+/* Star rating on selected card */
+.onboarding-card-stars {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0,0,0,0.9);
+  padding: 8px;
+  display: none;
+  justify-content: center;
+  gap: 4px;
+}
+
+.onboarding-card.selected .onboarding-card-stars {
+  display: flex;
+}
+
+.onboarding-card.selected .onboarding-card-info {
+  bottom: 40px;
+}
+
+.onboarding-star {
+  font-size: 20px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.1s, transform 0.1s;
+  user-select: none;
+}
+
+.onboarding-star:hover {
+  transform: scale(1.2);
+}
+
+/* Bottom bar */
+.onboarding-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(20, 20, 20, 0.97);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 16px 4%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  z-index: 100;
+}
+
+.onboarding-counter {
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.onboarding-counter strong {
+  color: var(--text-primary);
+}
+
+.onboarding-counter .counter-accent {
+  color: var(--accent);
+}
+
+.btn-start {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 14px 40px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: var(--card-radius);
+  cursor: pointer;
+  transition: background var(--transition), opacity var(--transition);
+  min-width: 180px;
+}
+
+.btn-start:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn-start:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .onboarding-grid {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 8px;
+  }
+
+  .onboarding-footer {
+    flex-direction: column;
+  }
+
+  .btn-start {
+    width: 100%;
+  }
+}
