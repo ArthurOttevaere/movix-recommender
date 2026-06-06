@@ -2,6 +2,8 @@
 
 *Recommender Systems — MLSMM2156, Q2 2026 - Andry Lenny, El Mohcine Mohamed Amine & Ottevaere Arthur*
 
+**Repository:** https://github.com/ArthurOttevaere/Recommender_System_Assignments
+
 ---
 
 Movix is an academic recommender-systems project built on the
