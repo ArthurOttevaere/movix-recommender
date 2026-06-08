@@ -16,3 +16,5 @@ frontend/config.local.js
 .claude/
 .pytest_cache/
 .vscode/
+
+GUIDE_ETUDE.md
