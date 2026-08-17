@@ -29,7 +29,7 @@ from urllib.request import urlopen, Request
 # MOVIX_ARTIFACTS_URL environment variable.
 ARTIFACTS_URL = os.environ.get(
     "MOVIX_ARTIFACTS_URL",
-    "https://github.com/ArthurOttevaere/Recommender_System_Assignments/releases/download/v1.0-artifacts/artifacts.zip",
+    "https://github.com/ArthurOttevaere/movix-recommender/releases/download/v1.0-artifacts/artifacts.zip",
 )
 
 ARTIFACTS_DIR = Path(__file__).parent / "backend" / "artifacts"

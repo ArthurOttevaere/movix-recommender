@@ -2,7 +2,7 @@
 
 *Recommender Systems — MLSMM2156, Q2 2026 - Andry Lenny, El Mohcine Mohamed Amine & Ottevaere Arthur*
 
-**Repository:** https://github.com/ArthurOttevaere/Recommender_System_Assignments
+**Repository:** https://github.com/ArthurOttevaere/movix-recommender
 
 ---
 
@@ -94,7 +94,7 @@ pip install -r requirements.txt
 ### 3. Download the trained models
 The trained models live in `backend/artifacts/`, but they are too large for git, so
 they are published as a single archive on the project's
-[GitHub Release](https://github.com/ArthurOttevaere/Recommender_System_Assignments/releases/tag/v1.0-artifacts).
+[GitHub Release](https://github.com/ArthurOttevaere/movix-recommender/releases/tag/v1.0-artifacts).
 **You don't need the dataset for this — just run:**
 ```bash
 python download_artifacts.py
